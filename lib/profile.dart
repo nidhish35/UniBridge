@@ -34,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: Image.asset('assets/images/Arrow.png',width: 24),
+          icon: Image.asset('assets/images/Arrow.png'),
           onPressed: () => Navigator.pop(context),
         ),
         backgroundColor: Colors.grey[200],

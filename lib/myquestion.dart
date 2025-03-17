@@ -188,11 +188,11 @@ class QuestionCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.thumb_up, size: 18, color: AppColors.mediumGray),
+                Image.asset('assets/images/Like.png', width: 24),
                 const SizedBox(width: 4),
                 Text(question.likes.toString()),
                 const SizedBox(width: 10),
-                const Icon(Icons.thumb_down, size: 18, color: AppColors.mediumGray),
+                Image.asset('assets/images/Like-2.png', width: 24),
                 const SizedBox(width: 4),
                 Text(question.dislikes.toString()),
                 const Spacer(),
@@ -203,7 +203,7 @@ class QuestionCard extends StatelessWidget {
                       MaterialPageRoute(builder: (context) => const EditQuestion()),
                     );
                   },
-                  icon: const Icon(Icons.edit, size: 16),
+                  icon: Image.asset('assets/images/Pencil.png', width: 24),
                   label: const Text("Edit"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
@@ -216,7 +216,7 @@ class QuestionCard extends StatelessWidget {
                   onPressed: () {
                     // Implement delete function here
                   },
-                  icon: const Icon(Icons.delete, size: 16),
+                  icon: Image.asset('assets/images/Delete.png', width: 24),
                   label: const Text("Delete"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
