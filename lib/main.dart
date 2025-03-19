@@ -52,8 +52,6 @@ class MyApp extends StatelessWidget {
         '/answers': (context) => const AllAnswerScreen(),
 
 
-
-
       },
     );
   }
