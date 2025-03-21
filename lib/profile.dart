@@ -24,14 +24,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
-        leading: IconButton(
-          icon: Image.asset('assets/images/Arrow.png'),
-          onPressed: () => Navigator.pop(context),
-        ),
-        backgroundColor: Colors.grey[200],
+        backgroundColor: AppColors.primaryBlue,
         title: const Text(
           "UniBridge",
-          style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppColors.pureWhite,),
         ),
         centerTitle: true,
       ),
@@ -40,7 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             width: double.infinity,
             height: 100,
-            color: AppColors.primaryBlue,
+            color: Colors.grey[200],
             child: Align(
               alignment: Alignment.bottomCenter,
               child: CircleAvatar(

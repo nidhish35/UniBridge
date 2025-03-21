@@ -10,7 +10,6 @@ import 'profile.dart';
 import 'settings.dart';
 import 'answers.dart';
 
-
 class EditQuestion extends StatefulWidget {
   const EditQuestion({super.key});
 
@@ -30,7 +29,7 @@ class _EditQuestionState extends State<EditQuestion> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Image.asset('assets/images/Arrow.png',width: 24),
+          icon: Image.asset('assets/images/Arrow.png', width: 24),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -205,59 +204,6 @@ class _EditQuestionState extends State<EditQuestion> {
           ),
         ),
       ),
-
-      // Bottom Navigation Bar
-        bottomNavigationBar: Container(
-          color: AppColors.primaryBlue, // Ensure background color is applied
-          child: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed, // Prevents transparency issues
-            backgroundColor: Colors.transparent, // Keep transparent to inherit Container color
-            selectedItemColor: AppColors.pureWhite, // Change selected icon color to white
-            unselectedItemColor: AppColors.lightGray, // Adjust unselected color if needed
-            currentIndex: 0, // Index for tracking the selected tab
-            onTap: (index) {
-              if (index == 0) { // Profile tab
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                );
-              } else if (index == 1) { // Home tab
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const QuestionScreen()),
-                );
-              } else if (index == 2) { // Add Question tab
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AskQuestionsScreen()),
-                );
-              } else if (index == 3) { // Settings tab
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                );
-              }
-            },
-            items: [
-              BottomNavigationBarItem(
-                icon: Image.asset('assets/images/profile.png', width: 24, height: 24, color: AppColors.pureWhite),
-                label: "",
-              ),
-              BottomNavigationBarItem(
-                icon: Image.asset('assets/images/Home.png',width: 24, height: 24, color: AppColors.pureWhite),
-                label: "",
-              ),
-              BottomNavigationBarItem(
-                icon: Image.asset('assets/images/Add.png', width: 24, height: 24, color: AppColors.pureWhite),
-                label: "",
-              ),
-              BottomNavigationBarItem(
-                icon: Image.asset('assets/images/settings.png',width: 24, height: 24, color: AppColors.pureWhite),
-                label: "",
-              ),
-            ],
-          ),
-        )
-
     );
-  }}
+  }
+}
