@@ -66,10 +66,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
   AppBar _buildAppBar() {
     return AppBar(
       elevation: 0,
-      leading: IconButton(
-        icon: Image.asset('assets/images/backarrow.png', width: 24),
-        onPressed: () => Navigator.pop(context),
-      ),
       title: const Text("UniBridge", style: TextStyle(color: AppColors.pureWhite)),
       backgroundColor: AppColors.primaryBlue,
       centerTitle: true,
