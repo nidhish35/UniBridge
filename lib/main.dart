@@ -15,12 +15,22 @@ import 'theme.dart';
 import 'myquestion.dart';
 import 'editques.dart';
 import 'answers.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  // Initialize Flutter binding
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Start the app
+  runApp(MyApp());
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
