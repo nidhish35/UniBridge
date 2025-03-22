@@ -16,6 +16,8 @@ class GeneralQuestionScreen extends StatefulWidget {
 
 class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
   int _selectedIndex = 1; // Default to Home tab
+  bool _showEducationQuestions = false; // Start with General Questions
+
   final List<Question> questions = [
     Question(
       category: "School of Business (SOB)",
@@ -32,7 +34,7 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
       dislikes: 1,
     ),
     Question(
-      category: "School of Law (SOL)",
+      category: "General Question 1",
       categoryColor: AppColors.lightBlue,
       questionText: "What is the difference between...",
       likes: 0,
@@ -40,26 +42,34 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
     ),
   ];
 
-  final List<Widget> _pages = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _pages.addAll([
-      const ProfileScreen(),
-      HomeContent(questions: questions),
-      const AskQuestionsScreen(),
-      const SettingsScreen(),
-    ]);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _selectedIndex == 1 ? _buildAppBar() : null,
-      body: _pages[_selectedIndex],
+      body: _getPage(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  Widget _getPage() {
+    if (_selectedIndex == 1) {
+      return HomeContent(
+        questions: questions,
+        isEducation: _showEducationQuestions,
+        onCategoryChanged: (isEducation) {
+          setState(() {
+            _showEducationQuestions = isEducation;
+          });
+        },
+      );
+    } else if (_selectedIndex == 0) {
+      return const ProfileScreen();
+    } else if (_selectedIndex == 2) {
+      return const AskQuestionsScreen();
+    } else if (_selectedIndex == 3) {
+      return const SettingsScreen();
+    }
+    return const SizedBox.shrink(); // Default empty widget
   }
 
   AppBar _buildAppBar() {
@@ -103,10 +113,22 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
 
 class HomeContent extends StatelessWidget {
   final List<Question> questions;
-  const HomeContent({super.key, required this.questions});
+  final bool isEducation;
+  final ValueChanged<bool> onCategoryChanged;
+
+  const HomeContent({
+    super.key,
+    required this.questions,
+    required this.isEducation,
+    required this.onCategoryChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final filteredQuestions = questions.where((q) => isEducation
+        ? q.category.contains("School")
+        : !q.category.contains("School")).toList();
+
     return Column(
       children: [
         Padding(
@@ -116,16 +138,13 @@ class HomeContent extends StatelessWidget {
             children: [
               CategoryButton(
                 text: "Education Questions",
-                isSelected: false,
-                onTap: () {},
+                isSelected: isEducation,
+                onTap: () => onCategoryChanged(true),
               ),
               CategoryButton(
                 text: "General Questions",
-                isSelected: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const GeneralQuestionScreen()),
-                ),
+                isSelected: !isEducation,
+                onTap: () => onCategoryChanged(false),
               ),
             ],
           ),
@@ -189,9 +208,9 @@ class HomeContent extends StatelessWidget {
         ),
         Expanded(
           child: ListView.builder(
-            itemCount: questions.length,
+            itemCount: filteredQuestions.length,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemBuilder: (context, index) => QuestionCard(question: questions[index]),
+            itemBuilder: (context, index) => QuestionCard(question: filteredQuestions[index]),
           ),
         ),
       ],
