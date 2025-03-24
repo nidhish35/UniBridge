@@ -18,6 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _longBioController;
   String _selectedGender = "Female";
   User? _currentUser;
+  String _profileImageUrl = '';
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _selectedGender = userDoc['gender'] ?? 'Female';
         _shortBioController.text = userDoc['shortBio'] ?? '';
         _longBioController.text = userDoc['longBio'] ?? '';
+        _profileImageUrl = userDoc['photoUrl'] ?? '';
       });
     }
   }
@@ -64,62 +66,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: AppColors.primaryBlue,
-        title: const Text(
-          "UniBridge",
-          style: TextStyle(color: AppColors.pureWhite),
+  Widget _buildProfileImage() {
+    return CircleAvatar(
+      radius: 40,
+      backgroundColor: Colors.black,
+      child: _profileImageUrl.isNotEmpty
+          ? ClipOval(
+        child: Image.network(
+          _profileImageUrl,
+          width: 76,
+          height: 76,
+          fit: BoxFit.cover,
         ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            height: 100,
-            color: Colors.grey[200],
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.black,
-                child: Image.asset('assets/images/profile.png', width: 40, height: 40),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _buildTextField(_nameController, "Full Name"),
-          const SizedBox(height: 10),
-          _buildTextField(_emailController, "Email"),
-          const SizedBox(height: 10),
-          _buildGenderSelection(),
-          const SizedBox(height: 10),
-          _buildTextField(_shortBioController, "Short Bio"),
-          const SizedBox(height: 10),
-          _buildTextField(_longBioController, "Long Bio", maxLines: 4),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MyQuestionScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-            ),
-            child: const Text("My Questions"),
-          ),
-        ],
-      ),
+      )
+          : Image.asset('assets/images/profile.png', width: 40, height: 40),
     );
   }
 
@@ -137,20 +97,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           filled: true,
           fillColor: Colors.grey[100],
         ),
-      ),
-    );
-  }
-
-  Widget _buildGenderSelection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _genderButton("Male"),
-          _genderButton("Female"),
-          _genderButton("Others"),
-        ],
       ),
     );
   }
@@ -180,6 +126,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGenderSelection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _genderButton("Male"),
+          _genderButton("Female"),
+          _genderButton("Others"),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: AppColors.primaryBlue,
+        title: const Text(
+          "UniBridge",
+          style: TextStyle(color: AppColors.pureWhite),
+        ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            height: 100,
+            color: Colors.grey[200],
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: _buildProfileImage(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(_nameController, "Full Name"),
+          const SizedBox(height: 10),
+          _buildTextField(_emailController, "Email"),
+          const SizedBox(height: 10),
+          _buildGenderSelection(),
+          const SizedBox(height: 10),
+          _buildTextField(_shortBioController, "Short Bio"),
+          const SizedBox(height: 10),
+          _buildTextField(_longBioController, "Long Bio", maxLines: 4),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyQuestionScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            ),
+            child: const Text("My Questions"),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
 import 'home.dart';
+import 'login.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -102,7 +103,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await userCredential.user?.updateDisplayName(fullName);
 
-      // Save user data to Firestore
       await _firestore.collection('users').doc(userCredential.user?.uid).set({
         'uid': userCredential.user?.uid,
         'fullName': fullName,
@@ -110,17 +110,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'gender': _selectedGender,
         'shortBio': shortBio,
         'longBio': longBio,
+        'photoUrl': '',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (userCredential.user != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Please login'),
-            duration: Duration(seconds: 3),
-          ),
+          const SnackBar(content: Text('Registration successful!')),
         );
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const QuestionScreen()),
+              (route) => false,
+        );
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
@@ -161,22 +163,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       UserCredential userCredential =
       await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
 
-      // Save Google user data to Firestore
-      if (userCredential.user != null) {
-        await _firestore.collection('users').doc(userCredential.user?.uid).set({
-          'uid': userCredential.user?.uid,
-          'fullName': userCredential.user?.displayName,
-          'email': userCredential.user?.email,
+      if (user != null) {
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'fullName': user.displayName ?? 'New User',
+          'email': user.email ?? '',
+          'gender': _selectedGender,
+          'shortBio': '',
+          'longBio': '',
+          'photoUrl': user.photoURL ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-      }
 
-      if (userCredential.user != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const QuestionScreen()),
-        );
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const QuestionScreen()),
+                (route) => false,
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -232,8 +239,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 20),
-
-                // Full Name
                 TextField(
                   controller: _fullNameController,
                   decoration: InputDecoration(
@@ -243,8 +248,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Email
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
@@ -254,8 +257,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Password
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscureText,
@@ -270,8 +271,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Gender Selection
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -284,8 +283,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Short Bio
                 TextField(
                   controller: _shortBioController,
                   decoration: InputDecoration(
@@ -295,8 +292,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Long Bio
                 TextField(
                   controller: _longBioController,
                   maxLines: 4,
@@ -307,8 +302,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Login Option
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Padding(
@@ -317,7 +310,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         const Text("Already have an Account? "),
                         GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/login'),
+                          onTap: () => Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                (route) => false,
+                          ),
                           child: const Text(
                             "Login",
                             style: TextStyle(
@@ -331,8 +328,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Register Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -348,8 +343,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Terms and Privacy Policy
                 const Text(
                   "By continuing, you agree to accept our",
                   style: TextStyle(fontSize: 12, color: Colors.black54),
@@ -374,43 +367,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                // OR Divider
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(child: Divider(color: Colors.black26)),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text("or continue with", style: TextStyle(color: Colors.black54)),
-                    ),
-                    Expanded(child: Divider(color: Colors.black26)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Social Media Icons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _SocialMediaIcon(
-                      assetPath: "assets/images/google.png",
-                      onTap: _signInWithGoogle,
-                    ),
-                    const SizedBox(width: 16),
-                    _SocialMediaIcon(
-                      assetPath: "assets/images/apple.png",
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 16),
-                    _SocialMediaIcon(
-                      assetPath: "assets/images/facebook.png",
-                      onTap: () {},
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
               ],
             ),
           ),

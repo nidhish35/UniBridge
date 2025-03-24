@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:email_validator/email_validator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
 import 'home.dart';
+import 'profile.dart'; // Make sure this import exists
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
@@ -38,9 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      if (userCredential.user != null) {
-        print("User signed in: ${userCredential.user!.email}");  // Debugging
-        if (mounted) _navigateToHome();
+      if (userCredential.user != null && mounted) {
+        _navigateToHome();
       }
     } on FirebaseAuthException catch (e) {
       _handleAuthError(e);
@@ -48,7 +50,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
@@ -71,9 +72,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
       UserCredential userCredential =
       await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
 
-      if (userCredential.user != null && mounted) {
-        _navigateToHome();
+      if (user != null) {
+        // Create or update user document with Google data
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'fullName': user.displayName ?? 'New User',
+          'email': user.email ?? '',
+          'gender': 'Not specified', // Default value
+          'shortBio': 'Tell us about yourself', // Default value
+          'longBio': 'More about you...', // Default value
+          'photoUrl': user.photoURL ?? '',
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        if (mounted) {
+          _navigateToHome();
+        }
       }
     } on FirebaseAuthException catch (e) {
       _handleAuthError(e, provider: 'Google');
@@ -328,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text("Don’t have an Account? "),
+        const Text("Don't have an Account? "),
         GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/register'),
           child: const Text(
