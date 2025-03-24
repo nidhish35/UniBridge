@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
-import 'home.dart'; // Import your HomeScreen
+import 'home.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,18 +15,61 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureText = true;
   bool _isLoading = false;
+  String _selectedGender = "Female";
+
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _shortBioController = TextEditingController();
+  final TextEditingController _longBioController = TextEditingController();
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _shortBioController.dispose();
+    _longBioController.dispose();
     super.dispose();
+  }
+
+  void _selectGender(String gender) {
+    setState(() {
+      _selectedGender = gender;
+    });
+  }
+
+  Widget _genderButton(String text) {
+    bool isSelected = _selectedGender == text;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _selectGender(text),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primaryBlue : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.primaryBlue),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.primaryBlue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _registerWithEmailAndPassword() async {
@@ -34,10 +78,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final String email = _emailController.text.trim();
       final String password = _passwordController.text.trim();
       final String fullName = _fullNameController.text.trim();
+      final String shortBio = _shortBioController.text.trim();
+      final String longBio = _longBioController.text.trim();
 
       if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please fill all fields')),
+          const SnackBar(content: Text('Please fill all required fields')),
         );
         return;
       }
@@ -54,14 +100,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: password,
       );
 
-      // Update display name (optional)
       await userCredential.user?.updateDisplayName(fullName);
 
+      // Save user data to Firestore
+      await _firestore.collection('users').doc(userCredential.user?.uid).set({
+        'uid': userCredential.user?.uid,
+        'fullName': fullName,
+        'email': email,
+        'gender': _selectedGender,
+        'shortBio': shortBio,
+        'longBio': longBio,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       if (userCredential.user != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const QuestionScreen()),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please login'),
+            duration: Duration(seconds: 3),
+          ),
         );
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
@@ -103,6 +162,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       UserCredential userCredential =
       await _auth.signInWithCredential(credential);
 
+      // Save Google user data to Firestore
+      if (userCredential.user != null) {
+        await _firestore.collection('users').doc(userCredential.user?.uid).set({
+          'uid': userCredential.user?.uid,
+          'fullName': userCredential.user?.displayName,
+          'email': userCredential.user?.email,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
       if (userCredential.user != null && mounted) {
         Navigator.pushReplacement(
           context,
@@ -133,7 +202,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo
                 Column(
                   children: [
                     Image.asset('assets/images/logo.png', height: 50),
@@ -149,8 +217,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // Title
                 const Text(
                   "Create Account",
                   style: TextStyle(
@@ -167,7 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Full Name Input
+                // Full Name
                 TextField(
                   controller: _fullNameController,
                   decoration: InputDecoration(
@@ -178,7 +244,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Email Input
+                // Email
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
@@ -189,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Password Input
+                // Password
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscureText,
@@ -203,6 +269,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Gender Selection
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _genderButton("Male"),
+                      _genderButton("Female"),
+                      _genderButton("Others"),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Short Bio
+                TextField(
+                  controller: _shortBioController,
+                  decoration: InputDecoration(
+                    labelText: "Short Bio (Optional)",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Long Bio
+                TextField(
+                  controller: _longBioController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: "About Yourself (Optional)",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Login Option
                 Align(
@@ -254,7 +358,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     GestureDetector(
-                      onTap: () {}, // Add terms navigation
+                      onTap: () {},
                       child: const Text(
                         "Terms of Services",
                         style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
@@ -262,7 +366,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const Text(" and ", style: TextStyle(fontSize: 12, color: Colors.black54)),
                     GestureDetector(
-                      onTap: () {}, // Add privacy policy navigation
+                      onTap: () {},
                       child: const Text(
                         "Privacy Policy",
                         style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
@@ -297,12 +401,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(width: 16),
                     _SocialMediaIcon(
                       assetPath: "assets/images/apple.png",
-                      onTap: () {}, // Add Apple Sign-In
+                      onTap: () {},
                     ),
                     const SizedBox(width: 16),
                     _SocialMediaIcon(
                       assetPath: "assets/images/facebook.png",
-                      onTap: () {}, // Add Facebook Sign-In
+                      onTap: () {},
                     ),
                   ],
                 ),

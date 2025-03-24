@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
-import 'hometwo.dart';
 import 'home.dart';
-import 'allquestion.dart';
-import 'askquestions.dart';
-import 'giveanswer.dart';
-import 'profile.dart';
-import 'settings.dart';
-import 'answers.dart';
-import 'myquestion.dart';
 
 
 class AnswerScreen extends StatefulWidget {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
-import 'allquestion.dart';
 import 'askquestions.dart';
 import 'giveanswer.dart';
 import 'profile.dart';

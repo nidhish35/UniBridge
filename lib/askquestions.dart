@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
-import 'home.dart';
-import 'hometwo.dart';
-import 'allquestion.dart';
-import 'askquestions.dart';
-import 'giveanswer.dart';
-import 'profile.dart';
-import 'settings.dart';
-import 'answers.dart';
+
 
 class AskQuestionsScreen extends StatefulWidget {
   const AskQuestionsScreen({super.key});

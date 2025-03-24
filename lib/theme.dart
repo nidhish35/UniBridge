@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
-import 'profile.dart';
-import 'home.dart';
-import 'askquestions.dart';
-import 'changepass.dart';
-import 'hometwo.dart';
-import 'allquestion.dart';
-import 'giveanswer.dart';
-import 'settings.dart';
-import 'answers.dart';
-import 'myquestion.dart';
+
 
 
 class ThemeSettingsScreen extends StatefulWidget {

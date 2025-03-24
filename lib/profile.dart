@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
 import 'myquestion.dart';
 
@@ -10,12 +12,56 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _selectedGender = "Female"; // Default selected gender
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _shortBioController;
+  late TextEditingController _longBioController;
+  String _selectedGender = "Female";
+  User? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _shortBioController = TextEditingController();
+    _longBioController = TextEditingController();
+    _currentUser = FirebaseAuth.instance.currentUser;
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    if (_currentUser == null) return;
+
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUser!.uid)
+        .get();
+
+    if (userDoc.exists) {
+      setState(() {
+        _nameController.text = userDoc['fullName'] ?? '';
+        _emailController.text = userDoc['email'] ?? '';
+        _selectedGender = userDoc['gender'] ?? 'Female';
+        _shortBioController.text = userDoc['shortBio'] ?? '';
+        _longBioController.text = userDoc['longBio'] ?? '';
+      });
+    }
+  }
 
   void _selectGender(String gender) {
     setState(() {
       _selectedGender = gender;
     });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _shortBioController.dispose();
+    _longBioController.dispose();
+    super.dispose();
   }
 
   @override
@@ -27,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: AppColors.primaryBlue,
         title: const Text(
           "UniBridge",
-          style: TextStyle(color: AppColors.pureWhite,),
+          style: TextStyle(color: AppColors.pureWhite),
         ),
         centerTitle: true,
       ),
@@ -47,15 +93,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          _buildTextField(hintText: "Ritika Chandak"),
+          _buildTextField(_nameController, "Full Name"),
           const SizedBox(height: 10),
-          _buildTextField(hintText: "ritikachandak@gmail.com"),
+          _buildTextField(_emailController, "Email"),
           const SizedBox(height: 10),
           _buildGenderSelection(),
           const SizedBox(height: 10),
-          _buildTextField(hintText: "Short Bio"),
+          _buildTextField(_shortBioController, "Short Bio"),
           const SizedBox(height: 10),
-          _buildTextField(hintText: "Long Bio", maxLines: 4),
+          _buildTextField(_longBioController, "Long Bio", maxLines: 4),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
@@ -77,11 +123,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTextField({required String hintText, int maxLines = 1}) {
+  Widget _buildTextField(TextEditingController controller, String hintText, {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: TextField(
+        controller: controller,
         maxLines: maxLines,
+        readOnly: true,
         decoration: InputDecoration(
           hintText: hintText,
           contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -109,10 +157,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _genderButton(String text) {
     bool isSelected = _selectedGender == text;
-
     return Expanded(
       child: GestureDetector(
-        onTap: () => _selectGender(text), // Update selected gender
+        onTap: () => _selectGender(text),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
