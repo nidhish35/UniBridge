@@ -64,8 +64,6 @@ class MyApp extends StatelessWidget {
         '/editques': (context) => const EditQuestion(),
         '/answers': (context) => const AllAnswerScreen(),
 
-
-
       },
     );
   }
