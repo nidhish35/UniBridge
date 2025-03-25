@@ -5,7 +5,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
 import 'educationquestion.dart';
-import 'profile.dart'; // Make sure this import exists
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
-import 'allquestion.dart';
 import 'askquestions.dart';
 import 'giveanswer.dart';
 import 'profile.dart';
@@ -184,25 +183,6 @@ class HomeContent extends StatelessWidget {
                   ),
                 ),
               )
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Popular Questions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AllQuestionsScreen()),
-                ),
-                child: const Text(
-                  "View All Questions",
-                  style: TextStyle(color: AppColors.mediumGray),
-                ),
-              ),
             ],
           ),
         ),
