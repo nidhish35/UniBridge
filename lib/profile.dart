@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'constraints/app_colors.dart';
 import 'myquestion.dart';
 
@@ -19,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _selectedGender = "Female";
   User? _currentUser;
   String _profileImageUrl = '';
+  XFile? _pickedImage;
 
   @override
   void initState() {
@@ -51,6 +55,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _pickedImage = pickedFile;
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (_currentUser == null) return;
+
+    try {
+      String? imageUrl;
+      if (_pickedImage != null) {
+        Reference storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_images/${_currentUser!.uid}');
+        UploadTask uploadTask = storageRef.putFile(File(_pickedImage!.path));
+        TaskSnapshot snapshot = await uploadTask;
+        imageUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      Map<String, dynamic> updateData = {
+        'fullName': _nameController.text,
+        'gender': _selectedGender,
+        'shortBio': _shortBioController.text,
+        'longBio': _longBioController.text,
+      };
+
+      if (imageUrl != null) {
+        updateData['photoUrl'] = imageUrl;
+        setState(() {
+          _profileImageUrl = imageUrl!;
+          _pickedImage = null;
+        });
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .update(updateData);
+
+      if (_nameController.text.isNotEmpty) {
+        await _currentUser!.updateDisplayName(_nameController.text);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile: $e')),
+      );
+    }
+  }
+
   void _selectGender(String gender) {
     setState(() {
       _selectedGender = gender;
@@ -67,32 +130,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileImage() {
-    return CircleAvatar(
-      radius: 40,
-      backgroundColor: Colors.black,
-      child: _profileImageUrl.isNotEmpty
-          ? ClipOval(
-        child: Image.network(
-          _profileImageUrl,
-          width: 76,
-          height: 76,
-          fit: BoxFit.cover,
-        ),
-      )
-          : Image.asset('assets/images/profile.png', width: 40, height: 40),
+    return GestureDetector(
+      onTap: _pickImage,
+      child: CircleAvatar(
+        radius: 40,
+        backgroundColor: Colors.grey[300],
+        child: _pickedImage != null
+            ? ClipOval(
+          child: Image.file(
+            File(_pickedImage!.path),
+            width: 76,
+            height: 76,
+            fit: BoxFit.cover,
+          ),
+        )
+            : (_profileImageUrl.isNotEmpty
+            ? ClipOval(
+          child: Image.network(
+            _profileImageUrl,
+            width: 76,
+            height: 76,
+            fit: BoxFit.cover,
+          ),
+        )
+            : const Icon(Icons.camera_alt, size: 40, color: Colors.grey)),
+      ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hintText, {int maxLines = 1}) {
+  Widget _buildTextField(TextEditingController controller, String hintText,
+      {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        readOnly: true,
+        readOnly: hintText == "Email",
         decoration: InputDecoration(
           hintText: hintText,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           filled: true,
           fillColor: Colors.grey[100],
@@ -157,44 +234,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            height: 100,
-            color: Colors.grey[200],
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _buildProfileImage(),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              height: 100,
+              color: Colors.grey[200],
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildProfileImage(),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          _buildTextField(_nameController, "Full Name"),
-          const SizedBox(height: 10),
-          _buildTextField(_emailController, "Email"),
-          const SizedBox(height: 10),
-          _buildGenderSelection(),
-          const SizedBox(height: 10),
-          _buildTextField(_shortBioController, "Short Bio"),
-          const SizedBox(height: 10),
-          _buildTextField(_longBioController, "Long Bio", maxLines: 4),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MyQuestionScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            const SizedBox(height: 20),
+            _buildTextField(_nameController, "Full Name"),
+            const SizedBox(height: 10),
+            _buildTextField(_emailController, "Email"),
+            const SizedBox(height: 10),
+            _buildGenderSelection(),
+            const SizedBox(height: 10),
+            _buildTextField(_shortBioController, "Short Bio"),
+            const SizedBox(height: 10),
+            _buildTextField(_longBioController, "Long Bio", maxLines: 4),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _saveProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25)),
+              ),
+              child: const Text("Save Profile"),
             ),
-            child: const Text("My Questions"),
-          ),
-        ],
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const MyQuestionScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[300],
+                foregroundColor: AppColors.primaryBlue,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25)),
+              ),
+              child: const Text("My Questions"),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
