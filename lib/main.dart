@@ -3,8 +3,8 @@ import 'login.dart';
 import 'register.dart';
 import 'splash.dart';
 import 'forgotpass.dart'; // Import Forgot Password Screen
-import 'home.dart';// Import Home Screen
-import 'hometwo.dart';
+import 'educationquestion.dart';// Import Home Screen
+import 'generalquestion.dart';
 import 'allquestion.dart';
 import 'askquestions.dart';
 import 'giveanswer.dart';
@@ -51,8 +51,8 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(), // Login Screen
         '/register': (context) => const RegisterScreen(), // Register Screen
         '/forgot_password': (context) => const ForgotPasswordScreen(), // Forgot Password Screen
-        '/home': (context) => const QuestionScreen(), // Home Screen
-        '/hometwo': (context) => const GeneralQuestionScreen(),
+        '/educationquestion': (context) => const QuestionScreen(), // Home Screen
+        '/generalquestion': (context) => const GeneralQuestionScreen(),
         '/allquestion': (context) => const AllQuestionsScreen(),
         '/askquestion' : (context) => const AskQuestionsScreen(),
         '/giveanswer': (context) => const AnswerScreen(),

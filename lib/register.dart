@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
-import 'home.dart';
+import 'educationquestion.dart';
 import 'login.dart';
 
 class RegisterScreen extends StatefulWidget {
