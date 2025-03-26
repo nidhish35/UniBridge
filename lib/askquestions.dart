@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class AskQuestionsScreen extends StatefulWidget {
@@ -167,17 +169,42 @@ class _AskQuestionsScreenState extends State<AskQuestionsScreen> {
     );
   }
 
-  void _submitQuestion() {
+  void _submitQuestion() async {
     if (_questionController.text.isEmpty || selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill in all fields before posting.")),
+        const SnackBar(
+            content: Text("Please fill in all fields before posting.")),
       );
       return;
     }
-    // Handle question submission logic here
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Question posted in $selectedCategory section!")),
-    );
-    _questionController.clear();
+
+    try {
+      // Get current user ID
+      String userId = FirebaseAuth.instance.currentUser?.uid ?? "anonymous";
+
+      // Add question to Firestore
+      await FirebaseFirestore.instance.collection("questions").add({
+        "questionText": _questionController.text,
+        "userId": userId,
+        "category": selectedCategory,
+        "timestamp": FieldValue.serverTimestamp(), // Optional: for sorting
+        "likes": 0,
+        "dislikes": 0,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("Question posted in $selectedCategory section!")),
+      );
+
+      _questionController.clear();
+      setState(() {
+        selectedCategory = null;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to post question. Try again.")),
+      );
+    }
   }
 }
