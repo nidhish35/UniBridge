@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'educationquestion.dart';
 
 class AskQuestionsScreen extends StatefulWidget {
-  const AskQuestionsScreen({super.key});
+  final VoidCallback? onQuestionPosted;
+
+  const AskQuestionsScreen({super.key, this.onQuestionPosted});
 
   @override
   State<AskQuestionsScreen> createState() => _AskQuestionsScreenState();
@@ -96,7 +98,6 @@ class _AskQuestionsScreenState extends State<AskQuestionsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // Dropdown
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -122,7 +123,6 @@ class _AskQuestionsScreenState extends State<AskQuestionsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Text Field for Question
             TextField(
               controller: _questionController,
               maxLines: 4,
@@ -143,13 +143,10 @@ class _AskQuestionsScreenState extends State<AskQuestionsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // Submit Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  _submitQuestion();
-                },
+                onPressed: _submitQuestion,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBlue,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -172,35 +169,38 @@ class _AskQuestionsScreenState extends State<AskQuestionsScreen> {
   void _submitQuestion() async {
     if (_questionController.text.isEmpty || selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Please fill in all fields before posting.")),
+        const SnackBar(content: Text("Please fill in all fields before posting.")),
       );
       return;
     }
 
     try {
-      // Get current user ID
       String userId = FirebaseAuth.instance.currentUser?.uid ?? "anonymous";
 
-      // Add question to Firestore
       await FirebaseFirestore.instance.collection("questions").add({
         "questionText": _questionController.text,
         "userId": userId,
         "category": selectedCategory,
-        "timestamp": FieldValue.serverTimestamp(), // Optional: for sorting
+        "timestamp": FieldValue.serverTimestamp(),
         "likes": 0,
         "dislikes": 0,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text("Question posted in $selectedCategory section!")),
-      );
-
       _questionController.clear();
-      setState(() {
-        selectedCategory = null;
-      });
+      setState(() => selectedCategory );
+
+      if (widget.onQuestionPosted != null) {
+        widget.onQuestionPosted!();
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const QuestionScreen()),
+        );
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Question posted in $selectedCategory section!")),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to post question. Try again.")),

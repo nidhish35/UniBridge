@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'constraints/app_colors.dart';
 import 'askquestions.dart';
 import 'giveanswer.dart';
@@ -14,38 +15,43 @@ class QuestionScreen extends StatefulWidget {
 }
 
 class _QuestionScreenState extends State<QuestionScreen> {
-  int _selectedIndex = 1; // Default to Home tab
-  bool _showEducationQuestions = true; // Toggle state for education/general questions
+  int _selectedIndex = 1;
+  bool _showEducationQuestions = true;
+  List<Question> questions = [];
+  bool _isLoading = true;
 
-  final List<Question> questions = [
-    Question(
-      category: "School of Business (SOB)",
-      categoryColor: AppColors.mintGreen,
-      questionText: "What is the difference between product design and UI/UX design?",
-      likes: 3,
-      dislikes: 1,
-    ),
-    Question(
-      category: "School of Technology (SOT)",
-      categoryColor: AppColors.goldenYellow,
-      questionText: "What is the difference between product design and UI/UX design?",
-      likes: 3,
-      dislikes: 1,
-    ),
-    Question(
-      category: "General Question 1",
-      categoryColor: AppColors.lightBlue,
-      questionText: "What is the difference between...",
-      likes: 0,
-      dislikes: 0,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchQuestions();
+  }
+
+  Future<void> _fetchQuestions() async {
+    try {
+      QuerySnapshot snapshot =
+      await FirebaseFirestore.instance.collection('questions').get();
+
+      List<Question> fetchedQuestions = snapshot.docs
+          .map((doc) => Question.fromFirestore(doc))
+          .toList();
+
+      setState(() {
+        questions = fetchedQuestions;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching questions: $e");
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _selectedIndex == 1 ? _buildAppBar() : null,
-      body: _getPage(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _getPage(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
@@ -64,11 +70,18 @@ class _QuestionScreenState extends State<QuestionScreen> {
     } else if (_selectedIndex == 0) {
       return const ProfileScreen();
     } else if (_selectedIndex == 2) {
-      return const AskQuestionsScreen();
+      return AskQuestionsScreen(
+        onQuestionPosted: () {
+          setState(() {
+            _selectedIndex = 1; // Switch back to Home tab
+            _fetchQuestions(); // Refresh questions list
+          });
+        },
+      );
     } else if (_selectedIndex == 3) {
       return const SettingsScreen();
     }
-    return const SizedBox.shrink(); // Default empty widget
+    return const SizedBox.shrink();
   }
 
   AppBar _buildAppBar() {
@@ -110,8 +123,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
   }
 }
 
-
-
 class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
@@ -127,8 +138,8 @@ class HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filteredQuestions = questions.where((q) => isEducation
-        ? q.category.contains("School")
-        : !q.category.contains("School")).toList();
+        ? q.category == "Education"
+        : q.category != "Education").toList();
 
     return Column(
       children: [
@@ -151,7 +162,9 @@ class HomeContent extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
+          child: filteredQuestions.isEmpty
+              ? const Center(child: Text("No questions found"))
+              : ListView.builder(
             itemCount: filteredQuestions.length,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) => QuestionCard(question: filteredQuestions[index]),
@@ -161,7 +174,6 @@ class HomeContent extends StatelessWidget {
     );
   }
 }
-
 
 class CategoryButton extends StatelessWidget {
   final String text;
@@ -215,6 +227,29 @@ class Question {
     required this.likes,
     required this.dislikes,
   });
+
+  factory Question.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    return Question(
+      category: data['category'] ?? 'Unknown',
+      categoryColor: _getCategoryColor(data['category'] ?? 'General'),
+      questionText: data['questionText'] ?? '',
+      likes: (data['likes'] ?? 0).toInt(),
+      dislikes: (data['dislikes'] ?? 0).toInt(),
+    );
+  }
+
+  static Color _getCategoryColor(String category) {
+    switch (category) {
+      case "Education":
+        return AppColors.mintGreen;
+      case "General":
+        return AppColors.goldenYellow;
+      default:
+        return AppColors.lightBlue;
+    }
+  }
 }
 
 class QuestionCard extends StatelessWidget {
