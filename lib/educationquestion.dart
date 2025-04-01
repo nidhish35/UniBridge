@@ -6,6 +6,8 @@ import 'giveanswer.dart';
 import 'profile.dart';
 import 'settings.dart';
 import 'answers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
@@ -311,11 +313,58 @@ class Question {
   }
 }
 
-class QuestionCard extends StatelessWidget {
+class QuestionCard extends StatefulWidget {
   final Question question;
   final Function(String) onDelete;
 
   const QuestionCard({super.key, required this.question, required this.onDelete});
+
+  @override
+  _QuestionCardState createState() => _QuestionCardState();
+}
+
+class _QuestionCardState extends State<QuestionCard> {
+  bool _isLiking = false;
+  bool _isDisliking = false;
+
+  void _updateLikes(bool isLike) async {
+    if (_isLiking || _isDisliking) return; // Prevents multiple taps
+
+    setState(() {
+      if (isLike) {
+        _isLiking = true;
+      } else {
+        _isDisliking = true;
+      }
+    });
+
+    try {
+      DocumentReference questionRef =
+      FirebaseFirestore.instance.collection('questions').doc(widget.question.id);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot snapshot = await transaction.get(questionRef);
+        if (!snapshot.exists) return;
+
+        int currentLikes = (snapshot['likes'] ?? 0) as int;
+        int currentDislikes = (snapshot['dislikes'] ?? 0) as int;
+
+        if (isLike) {
+          transaction.update(questionRef, {'likes': currentLikes + 1});
+        } else {
+          transaction.update(questionRef, {'dislikes': currentDislikes + 1});
+        }
+      });
+
+    } catch (e) {
+      debugPrint("Error updating likes/dislikes: $e");
+    }
+
+    setState(() {
+      _isLiking = false;
+      _isDisliking = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -328,43 +377,84 @@ class QuestionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Category & Delete Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: question.categoryColor,
+                    color: widget.question.categoryColor,
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    question.category,
+                    widget.question.category,
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
                   icon: Image.asset('assets/images/Delete.png', width: 24),
-                  onPressed: () => onDelete(question.id),  // Call delete function
+                  onPressed: () => widget.onDelete(widget.question.id),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(question.questionText, style: const TextStyle(fontSize: 14)),
+
+            // Question Text
+            Text(widget.question.questionText, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 10),
+
+            // Like & Dislike Buttons
             Row(
               children: [
-                Image.asset('assets/images/Like.png', width: 24),
-                const SizedBox(width: 4),
-                Text(question.likes.toString()),
+                GestureDetector(
+                  onTap: () => _updateLikes(true),
+                  child: Row(
+                    children: [
+                      Image.asset('assets/images/Like.png', width: 24),
+                      const SizedBox(width: 4),
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('questions')
+                            .doc(widget.question.id)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) return Text(widget.question.likes.toString());
+                          int updatedLikes = (snapshot.data!['likes'] ?? 0) as int;
+                          return Text(updatedLikes.toString());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Image.asset('assets/images/Like-2.png', width: 24),
-                const SizedBox(width: 4),
-                Text(question.dislikes.toString()),
+                GestureDetector(
+                  onTap: () => _updateLikes(false),
+                  child: Row(
+                    children: [
+                      Image.asset('assets/images/Like-2.png', width: 24),
+                      const SizedBox(width: 4),
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('questions')
+                            .doc(widget.question.id)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) return Text(widget.question.dislikes.toString());
+                          int updatedDislikes = (snapshot.data!['dislikes'] ?? 0) as int;
+                          return Text(updatedDislikes.toString());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
                 const Spacer(),
+
+                // See Answer Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => AllAnswerScreen(questionId: question.id)),
+                    MaterialPageRoute(builder: (context) => AllAnswerScreen(questionId: widget.question.id)),
                   ),
                   icon: Image.asset('assets/images/Show.png'),
                   label: const Text("See Answer"),
@@ -376,10 +466,12 @@ class QuestionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
+
+                // Give Answer Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => AnswerScreen(questionId: question.id)),
+                    MaterialPageRoute(builder: (context) => AnswerScreen(questionId: widget.question.id)),
                   ),
                   icon: Image.asset('assets/images/Pencil.png'),
                   label: const Text("Give Answer"),
