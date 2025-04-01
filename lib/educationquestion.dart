@@ -23,27 +23,14 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchQuestions();
   }
 
-  Future<void> _fetchQuestions() async {
-    try {
-      QuerySnapshot snapshot =
-      await FirebaseFirestore.instance.collection('questions').get();
-
-      List<Question> fetchedQuestions = snapshot.docs
-          .map((doc) => Question.fromFirestore(doc))
-          .toList();
-
-      setState(() {
-        questions = fetchedQuestions;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error fetching questions: $e");
-      setState(() => _isLoading = false);
-    }
+  Stream<List<Question>> _questionStream() {
+    return FirebaseFirestore.instance.collection('questions').snapshots().map(
+          (snapshot) => snapshot.docs.map((doc) => Question.fromFirestore(doc)).toList(),
+    );
   }
+
 
   void _deleteQuestion(String questionId) async {
     try {
@@ -110,15 +97,26 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
   Widget _getPage() {
     if (_selectedIndex == 1) {
-      return HomeContent(
-        questions: questions,
-        isEducation: _showEducationQuestions,
-        onCategoryChanged: (isEducation) {
-          setState(() {
-            _showEducationQuestions = isEducation;
-          });
+      return StreamBuilder<List<Question>>(
+        stream: _questionStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("No questions found"));
+          }
+          return HomeContent(
+            questions: snapshot.data!,
+            isEducation: _showEducationQuestions,
+            onCategoryChanged: (isEducation) {
+              setState(() {
+                _showEducationQuestions = isEducation;
+              });
+            },
+            onDelete: _deleteQuestion,
+          );
         },
-        onDelete: _deleteQuestion,  // Pass delete function
       );
     } else if (_selectedIndex == 0) {
       return const ProfileScreen();
@@ -127,7 +125,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
         onQuestionPosted: () {
           setState(() {
             _selectedIndex = 1; // Switch back to Home tab
-            _fetchQuestions(); // Refresh questions list
           });
         },
       );
@@ -136,6 +133,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
     }
     return const SizedBox.shrink();
   }
+
 
   AppBar _buildAppBar() {
     return AppBar(
