@@ -12,6 +12,13 @@ class MyQuestionScreen extends StatefulWidget {
 
 class _MyQuestionScreenState extends State<MyQuestionScreen> {
   final User? _currentUser = FirebaseAuth.instance.currentUser;
+  final TextEditingController _editController = TextEditingController();
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +26,7 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
       appBar: AppBar(
         title: const Text(
           "My Questions",
-          style: TextStyle( color: Colors.white),
+          style: TextStyle(color: Colors.white),
         ),
         backgroundColor: AppColors.primaryBlue,
         leading: IconButton(
@@ -50,6 +57,9 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
               itemCount: questions.length,
               itemBuilder: (context, index) {
                 var questionData = questions[index];
+                final questionText = questionData['questionText'];
+                final likes = questionData['likes'] ?? 0;
+                final dislikes = questionData['dislikes'] ?? 0;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -89,7 +99,7 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
 
                       // Question Text
                       Text(
-                        questionData['questionText'],
+                        questionText,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -97,13 +107,35 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
                       ),
                       const SizedBox(height: 10),
 
-                      // Like, Dislike, and Delete Button Row
+                      // Interaction Row
                       Row(
                         children: [
-                          Image.asset('assets/images/Like.png', width: 24),
-                          const SizedBox(width: 10),
-                Image.asset('assets/images/Like-2.png', width: 24),
+                          // Likes
+                          _buildVoteWidget('assets/images/Like.png', likes),
+                          const SizedBox(width: 15),
+
+                          // Dislikes
+                          _buildVoteWidget('assets/images/Like-2.png', dislikes),
                           const Spacer(),
+
+                          // Edit Button
+                          ElevatedButton.icon(
+                            onPressed: () => _showEditDialog(
+                              context,
+                              questionData.id,
+                              questionText,
+                            ),
+                            icon: Image.asset('assets/images/Pencil.png', width: 20),
+                            label: const Text("Edit"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryBlue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+
+                          // Delete Button
                           ElevatedButton.icon(
                             onPressed: () => _deleteQuestion(questionData.id),
                             icon: Image.asset('assets/images/Delete.png', width: 24),
@@ -113,7 +145,9 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
+                              foregroundColor: Colors.red,
                               side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
                           ),
                         ],
@@ -126,10 +160,77 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
           );
         },
       ),
+
     );
   }
 
-  // Category color logic
+  Widget _buildVoteWidget(String iconPath, int count) {
+    return Row(
+      children: [
+        Image.asset(iconPath, width: 24),
+        const SizedBox(width: 4),
+        Text(
+          count.toString(),
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  void _showEditDialog(BuildContext context, String questionId, String currentText) {
+    _editController.text = currentText;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit Question"),
+        content: TextField(
+          controller: _editController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: "Enter your question",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_editController.text.trim().isNotEmpty) {
+                await _updateQuestion(questionId, _editController.text.trim());
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+            ),
+            child: const Text("Save", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateQuestion(String questionId, String newText) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('questions')
+          .doc(questionId)
+          .update({'questionText': newText});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Question updated successfully!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to update question: $e")),
+      );
+    }
+  }
+
   Color _getCategoryColor(String category) {
     if (category.toLowerCase() == "education") {
       return Colors.green;
@@ -139,27 +240,11 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
     return Colors.grey;
   }
 
-  // Like & Dislike Icon with Counter
-  Widget _iconWithText(IconData icon, int count) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey),
-        const SizedBox(width: 4),
-        Text(count.toString(), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-      ],
-    );
-  }
-
-  // Delete Question Functionality
   Future<void> _deleteQuestion(String questionId) async {
     try {
       WriteBatch batch = FirebaseFirestore.instance.batch();
+      DocumentReference questionRef = FirebaseFirestore.instance.collection('questions').doc(questionId);
 
-      // Reference to the question document
-      DocumentReference questionRef =
-      FirebaseFirestore.instance.collection('questions').doc(questionId);
-
-      // Fetch all answers associated with the question
       QuerySnapshot answerSnapshot = await FirebaseFirestore.instance
           .collection('answers')
           .where('questionId', isEqualTo: questionId)
@@ -169,18 +254,15 @@ class _MyQuestionScreenState extends State<MyQuestionScreen> {
         batch.delete(doc.reference);
       }
 
-      // Delete the question itself
       batch.delete(questionRef);
-
-      // Commit the batch operation
       await batch.commit();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Question and its answers deleted successfully!")),
+        const SnackBar(content: Text("Question and answers deleted successfully!")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to delete question: $e")),
+        SnackBar(content: Text("Failed to delete: $e")),
       );
     }
   }

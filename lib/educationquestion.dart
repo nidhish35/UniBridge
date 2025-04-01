@@ -6,7 +6,6 @@ import 'giveanswer.dart';
 import 'profile.dart';
 import 'settings.dart';
 import 'answers.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
@@ -24,62 +23,25 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchQuestions();
   }
 
-  Stream<List<Question>> _questionStream() {
-    return FirebaseFirestore.instance.collection('questions').snapshots().map(
-          (snapshot) => snapshot.docs.map((doc) => Question.fromFirestore(doc)).toList(),
-    );
-  }
-
-  void _deleteQuestion(String questionId) async {
+  Future<void> _fetchQuestions() async {
     try {
-      WriteBatch batch = FirebaseFirestore.instance.batch();
+      QuerySnapshot snapshot =
+      await FirebaseFirestore.instance.collection('questions').get();
 
-      // Reference to the question document
-      DocumentReference questionRef =
-      FirebaseFirestore.instance.collection('questions').doc(questionId);
+      List<Question> fetchedQuestions = snapshot.docs
+          .map((doc) => Question.fromFirestore(doc))
+          .toList();
 
-      // Fetch all answers associated with the question
-      QuerySnapshot answerSnapshot = await FirebaseFirestore.instance
-          .collection('answers')
-          .where('questionId', isEqualTo: questionId)
-          .get();
-
-      if (answerSnapshot.docs.isEmpty) {
-        debugPrint("No answers found for this question.");
-      } else {
-        debugPrint("Deleting ${answerSnapshot.docs.length} answers.");
-      }
-
-      // Add all answers to batch delete
-      for (var doc in answerSnapshot.docs) {
-        debugPrint("Deleting answer: ${doc.id}");
-        batch.delete(doc.reference);
-      }
-
-      // Add the question to batch delete
-      batch.delete(questionRef);
-      debugPrint("Deleting question: $questionId");
-
-      // Commit the batch deletion
-      await batch.commit();
-      debugPrint("Batch commit successful!");
-
-      // Update the UI after deletion
       setState(() {
-        questions.removeWhere((q) => q.id == questionId);
+        questions = fetchedQuestions;
+        _isLoading = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Question and its answers deleted successfully!")),
-      );
     } catch (e) {
-      debugPrint("Error deleting question and answers: $e");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to delete question: $e")),
-      );
+      print("Error fetching questions: $e");
+      setState(() => _isLoading = false);
     }
   }
 
@@ -96,25 +58,13 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
   Widget _getPage() {
     if (_selectedIndex == 1) {
-      return StreamBuilder<List<Question>>(
-        stream: _questionStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("No questions found"));
-          }
-          return HomeContent(
-            questions: snapshot.data!,
-            isEducation: _showEducationQuestions,
-            onCategoryChanged: (isEducation) {
-              setState(() {
-                _showEducationQuestions = isEducation;
-              });
-            },
-            onDelete: _deleteQuestion,
-          );
+      return HomeContent(
+        questions: questions,
+        isEducation: _showEducationQuestions,
+        onCategoryChanged: (isEducation) {
+          setState(() {
+            _showEducationQuestions = isEducation;
+          });
         },
       );
     } else if (_selectedIndex == 0) {
@@ -124,6 +74,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
         onQuestionPosted: () {
           setState(() {
             _selectedIndex = 1; // Switch back to Home tab
+            _fetchQuestions(); // Refresh questions list
           });
         },
       );
@@ -176,14 +127,12 @@ class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
   final ValueChanged<bool> onCategoryChanged;
-  final Function(String) onDelete;
 
   const HomeContent({
     super.key,
     required this.questions,
     required this.isEducation,
     required this.onCategoryChanged,
-    required this.onDelete,
   });
 
   @override
@@ -220,7 +169,6 @@ class HomeContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) => QuestionCard(
               question: filteredQuestions[index],
-              onDelete: onDelete,
             ),
           ),
         ),
@@ -274,8 +222,6 @@ class Question {
   final String questionText;
   final int likes;
   final int dislikes;
-  final List<String> likedBy;
-  final List<String> dislikedBy;
 
   Question({
     required this.id,
@@ -284,8 +230,6 @@ class Question {
     required this.questionText,
     required this.likes,
     required this.dislikes,
-    required this.likedBy,
-    required this.dislikedBy,
   });
 
   factory Question.fromFirestore(DocumentSnapshot doc) {
@@ -298,8 +242,6 @@ class Question {
       questionText: data['questionText'] ?? '',
       likes: (data['likes'] ?? 0).toInt(),
       dislikes: (data['dislikes'] ?? 0).toInt(),
-      likedBy: List<String>.from(data['likedBy'] ?? []),
-      dislikedBy: List<String>.from(data['dislikedBy'] ?? []),
     );
   }
 
@@ -315,105 +257,13 @@ class Question {
   }
 }
 
-class QuestionCard extends StatefulWidget {
+class QuestionCard extends StatelessWidget {
   final Question question;
-  final Function(String) onDelete;
 
-  const QuestionCard({super.key, required this.question, required this.onDelete});
-
-  @override
-  _QuestionCardState createState() => _QuestionCardState();
-}
-
-class _QuestionCardState extends State<QuestionCard> {
-  bool _isLiking = false;
-  bool _isDisliking = false;
-
-  void _updateLikes(bool isLike) async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-
-    if (_isLiking || _isDisliking) return;
-
-    setState(() {
-      if (isLike) {
-        _isLiking = true;
-      } else {
-        _isDisliking = true;
-      }
-    });
-
-    try {
-      DocumentReference questionRef =
-      FirebaseFirestore.instance.collection('questions').doc(widget.question.id);
-
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot snapshot = await transaction.get(questionRef);
-        if (!snapshot.exists) return;
-
-        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
-        List<String> likedBy = List<String>.from(data['likedBy'] ?? []);
-        List<String> dislikedBy = List<String>.from(data['dislikedBy'] ?? []);
-        int currentLikes = (data['likes'] ?? 0) as int;
-        int currentDislikes = (data['dislikes'] ?? 0) as int;
-
-        if (isLike) {
-          if (likedBy.contains(userId)) {
-            // Undo like
-            likedBy.remove(userId);
-            currentLikes--;
-          } else if (dislikedBy.contains(userId)) {
-            // Switch from dislike to like
-            dislikedBy.remove(userId);
-            currentDislikes--;
-            likedBy.add(userId);
-            currentLikes++;
-          } else {
-            // New like
-            likedBy.add(userId);
-            currentLikes++;
-          }
-        } else {
-          if (dislikedBy.contains(userId)) {
-            // Undo dislike
-            dislikedBy.remove(userId);
-            currentDislikes--;
-          } else if (likedBy.contains(userId)) {
-            // Switch from like to dislike
-            likedBy.remove(userId);
-            currentLikes--;
-            dislikedBy.add(userId);
-            currentDislikes++;
-          } else {
-            // New dislike
-            dislikedBy.add(userId);
-            currentDislikes++;
-          }
-        }
-
-        transaction.update(questionRef, {
-          'likes': currentLikes,
-          'dislikes': currentDislikes,
-          'likedBy': likedBy,
-          'dislikedBy': dislikedBy,
-        });
-      });
-    } catch (e) {
-      debugPrint("Error updating votes: $e");
-    }
-
-    setState(() {
-      _isLiking = false;
-      _isDisliking = false;
-    });
-  }
+  const QuestionCard({super.key, required this.question});
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    final hasLiked = widget.question.likedBy.contains(userId);
-    final hasDisliked = widget.question.dislikedBy.contains(userId);
-
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -429,79 +279,35 @@ class _QuestionCardState extends State<QuestionCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: widget.question.categoryColor,
+                    color: question.categoryColor,
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    widget.question.category,
+                    question.category,
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
-                ),
-                IconButton(
-                  icon: Image.asset('assets/images/Delete.png', width: 24),
-                  onPressed: () => widget.onDelete(widget.question.id),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(widget.question.questionText, style: const TextStyle(fontSize: 14)),
+            Text(question.questionText, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 10),
             Row(
               children: [
-                GestureDetector(
-                  onTap: () => _updateLikes(true),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/Like.png',
-                        width: 24,
-                        color: hasLiked ? AppColors.primaryBlue : null,
-                      ),
-                      const SizedBox(width: 4),
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('questions')
-                            .doc(widget.question.id)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) return Text(widget.question.likes.toString());
-                          int updatedLikes = (snapshot.data!['likes'] ?? 0) as int;
-                          return Text(updatedLikes.toString());
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+                Image.asset('assets/images/Like.png', width: 24),
+                const SizedBox(width: 4),
+                Text(question.likes.toString()),
                 const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () => _updateLikes(false),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/Like-2.png',
-                        width: 24,
-                        color: hasDisliked ? AppColors.primaryBlue : null,
-                      ),
-                      const SizedBox(width: 4),
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('questions')
-                            .doc(widget.question.id)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) return Text(widget.question.dislikes.toString());
-                          int updatedDislikes = (snapshot.data!['dislikes'] ?? 0) as int;
-                          return Text(updatedDislikes.toString());
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+                Image.asset('assets/images/Like-2.png', width: 24),
+                const SizedBox(width: 4),
+                Text(question.dislikes.toString()),
                 const Spacer(),
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => AllAnswerScreen(questionId: widget.question.id)),
+                    MaterialPageRoute(
+                      builder: (context) => AllAnswerScreen(questionId: question.id),
+                    ),
                   ),
                   icon: Image.asset('assets/images/Show.png'),
                   label: const Text("See Answer"),
@@ -516,7 +322,9 @@ class _QuestionCardState extends State<QuestionCard> {
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => AnswerScreen(questionId: widget.question.id)),
+                    MaterialPageRoute(
+                      builder: (context) => AnswerScreen(questionId: question.id),
+                    ),
                   ),
                   icon: Image.asset('assets/images/Pencil.png'),
                   label: const Text("Give Answer"),

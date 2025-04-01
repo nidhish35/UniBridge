@@ -6,14 +6,12 @@ import 'forgotpass.dart'; // Import Forgot Password Screen
 import 'educationquestion.dart';// Import Home Screen
 import 'generalquestion.dart';
 import 'askquestions.dart';
-import 'giveanswer.dart';
 import 'profile.dart';
 import 'settings.dart';
 import 'changepass.dart';
 import 'theme.dart';
 import 'myquestion.dart';
 import 'editques.dart';
-import 'answers.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -59,7 +57,7 @@ class MyApp extends StatelessWidget {
         '/theme': (context) => const ThemeSettingsScreen(),
         '/myquestion': (context) => const MyQuestionScreen(),
         '/editques': (context) => const EditQuestion(),
-        
+
 
 
 
