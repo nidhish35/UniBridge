@@ -188,18 +188,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscureText,
-                    validator: (value) => (value?.length ?? 0) >= 6
+                    validator: (value) => (value != null && value.length >= 6)
                         ? null
                         : 'Minimum 6 characters required',
-                    decoration: _inputDecoration('Password').copyWith(
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureText
-                            ? Icons.visibility_off
-                            : Icons.visibility),
-                        onPressed: () => setState(() => _obscureText = !_obscureText),
+                        icon: Icon(
+                          _obscureText ? Icons.visibility_off : Icons.visibility, // ✅ Correct Icons
+                          color: Colors.black54, // ✅ Ensure it is visible
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureText = !_obscureText; // ✅ Toggle Password Visibility
+                          });
+                        },
                       ),
                     ),
                   ),
+
+
+
                   const SizedBox(height: 16),
 
                   // Forgot Password

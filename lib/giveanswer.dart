@@ -3,7 +3,6 @@ import 'constraints/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 class AnswerScreen extends StatefulWidget {
   final String questionId;
 
@@ -44,19 +43,9 @@ class _AnswerScreenState extends State<AnswerScreen> {
   }
 
   Color _getCategoryColor() {
-    if (_category.toLowerCase() == "education") {
-      return Colors.green.shade100;
-    } else {
-      return Colors.yellow.shade800;
-    }
-  }
-
-  Color _getCategoryTextColor() {
-    if (_category.toLowerCase() == "education") {
-      return Colors.black;
-    } else {
-      return Colors.black;
-    }
+    return _category.toLowerCase() == "education"
+        ? Colors.green.shade100
+        : Colors.yellow.shade800;
   }
 
   Future<void> _postAnswer() async {
@@ -85,6 +74,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true, // ✅ Fix for overflow issue
       appBar: AppBar(
         title: const Text("UniBridge", style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryBlue,
@@ -94,79 +84,83 @@ class _AnswerScreenState extends State<AnswerScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_category.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getCategoryColor(),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _category,
-                  style: TextStyle(
-                    color: _getCategoryTextColor(),
-                    fontWeight: FontWeight.w600,
+      body: SingleChildScrollView( // ✅ Enables scrolling when keyboard opens
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_category.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getCategoryColor(),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-              ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.grey,
-                  child: Icon(Icons.person, color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
                   child: Text(
-                    _questionText,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    _category,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(10),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.grey,
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _questionText,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
               ),
-              child: TextField(
-                controller: _answerController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: "Write your Answer",
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: TextField(
+                  controller: _answerController,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline, // ✅ Supports multiline input
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "Write your Answer",
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Align(
-              alignment: Alignment.centerRight,
-              child: Text("(word limit 0-500)", style: TextStyle(color: Colors.grey)),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isPosting ? null : _postAnswer,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: _isPosting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Post the Answer", style: TextStyle(fontSize: 16, color: Colors.white)),
+              const SizedBox(height: 8),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Text("(word limit 0-500)", style: TextStyle(color: Colors.grey)),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isPosting ? null : _postAnswer,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _isPosting
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Post the Answer", style: TextStyle(fontSize: 16, color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 20), // ✅ Extra space to prevent keyboard overlap
+            ],
+          ),
         ),
       ),
     );

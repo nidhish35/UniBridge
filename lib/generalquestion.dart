@@ -45,6 +45,25 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
     }
   }
 
+  void _deleteQuestion(String questionId) async {
+    try {
+      await FirebaseFirestore.instance.collection('questions').doc(questionId).delete();
+
+      setState(() {
+        questions.removeWhere((q) => q.id == questionId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Question deleted successfully!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete question: $e")),
+      );
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,7 +85,7 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
             _showEducationQuestions = isEducation;
           });
         },
-        refreshQuestions: _fetchQuestions,
+        onDelete: _deleteQuestion,  // Pass delete function
       );
     } else if (_selectedIndex == 0) {
       return const ProfileScreen();
@@ -128,21 +147,21 @@ class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
   final ValueChanged<bool> onCategoryChanged;
-  final VoidCallback refreshQuestions;
+  final Function(String) onDelete; // Add delete function
 
   const HomeContent({
     super.key,
     required this.questions,
     required this.isEducation,
     required this.onCategoryChanged,
-    required this.refreshQuestions,
+    required this.onDelete,  // Add delete function
   });
 
   @override
   Widget build(BuildContext context) {
     final filteredQuestions = questions.where((q) => isEducation
-        ? q.category.contains("School")
-        : !q.category.contains("School")).toList();
+        ? q.category == "Education"
+        : q.category != "Education").toList();
 
     return Column(
       children: [
@@ -164,48 +183,6 @@ class HomeContent extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.mintGreen,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Want to Post a Question?",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 4),
-              const Text("Start a question with 'What, How, Why, etc.'"),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AskQuestionsScreen(
-                        onQuestionPosted: refreshQuestions,
-                      ),
-                    ),
-                  ),
-                  icon: Image.asset('assets/images/Add.png', width: 24),
-                  label: const Text("Post a Question"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryCoral,
-                    foregroundColor: AppColors.pureWhite,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              )
-            ],
-          ),
-        ),
         Expanded(
           child: filteredQuestions.isEmpty
               ? const Center(child: Text("No questions found"))
@@ -214,6 +191,7 @@ class HomeContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) => QuestionCard(
               question: filteredQuestions[index],
+              onDelete: onDelete, // Pass delete function
             ),
           ),
         ),
@@ -221,6 +199,7 @@ class HomeContent extends StatelessWidget {
     );
   }
 }
+
 
 class CategoryButton extends StatelessWidget {
   final String text;
@@ -303,8 +282,9 @@ class Question {
 
 class QuestionCard extends StatelessWidget {
   final Question question;
+  final Function(String) onDelete;
 
-  const QuestionCard({super.key, required this.question});
+  const QuestionCard({super.key, required this.question, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -317,21 +297,28 @@ class QuestionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: question.categoryColor,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(
-                question.category,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.bold),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: question.categoryColor,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    question.category,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: Image.asset('assets/images/Delete.png', width: 24),
+                  onPressed: () => onDelete(question.id),  // Call delete function
+                ),
+              ],
             ),
             const SizedBox(height: 8),
-            Text(question.questionText,
-                style: const TextStyle(fontSize: 14)),
+            Text(question.questionText, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -346,8 +333,7 @@ class QuestionCard extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) =>  AllAnswerScreen(questionId: question.id)),
+                    MaterialPageRoute(builder: (context) => AllAnswerScreen(questionId: question.id)),
                   ),
                   icon: Image.asset('assets/images/Show.png'),
                   label: const Text("See Answer"),
@@ -362,8 +348,7 @@ class QuestionCard extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) =>  AnswerScreen(questionId: question.id)),
+                    MaterialPageRoute(builder: (context) => AnswerScreen(questionId: question.id)),
                   ),
                   icon: Image.asset('assets/images/Pencil.png'),
                   label: const Text("Give Answer"),

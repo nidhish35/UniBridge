@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'constraints/app_colors.dart';
-import 'editques.dart';
 
 class MyQuestionScreen extends StatefulWidget {
   const MyQuestionScreen({super.key});
@@ -10,166 +11,177 @@ class MyQuestionScreen extends StatefulWidget {
 }
 
 class _MyQuestionScreenState extends State<MyQuestionScreen> {
-  final List<Question> questions = [
-    Question(
-      category: "School of Business (SOB)",
-      categoryColor: AppColors.mintGreen,
-      questionText: "What is the difference between product design and UI/UX design?",
-      likes: 3,
-      dislikes: 1,
-    ),
-    Question(
-      category: "School of Technology (SOT)",
-      categoryColor: AppColors.goldenYellow,
-      questionText: "What is the difference between product design and UI/UX design?",
-      likes: 3,
-      dislikes: 1,
-    ),
-    Question(
-      category: "School of Law (SOL)",
-      categoryColor: AppColors.lightBlue,
-      questionText: "What is the difference between product design and UI/UX design?",
-      likes: 3,
-      dislikes: 1,
-    ),
-  ];
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: const Text(
+          "My Questions",
+          style: TextStyle( color: Colors.white),
+        ),
+        backgroundColor: AppColors.primaryBlue,
         leading: IconButton(
-          icon: Image.asset('assets/images/Arrow.png', width: 24),
+          icon: Image.asset('assets/images/backarrow-white.png', width: 24),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "UniBridge",
-          style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "My Questions",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+      body: _currentUser == null
+          ? const Center(child: Text("User not logged in"))
+          : StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('questions')
+            .where('userId', isEqualTo: _currentUser!.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No questions found"));
+          }
+
+          final questions = snapshot.data!.docs;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: ListView.builder(
+              itemCount: questions.length,
+              itemBuilder: (context, index) {
+                var questionData = questions[index];
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 1,
+                        blurRadius: 3,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Category Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getCategoryColor(questionData['category']),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          questionData['category'] ?? 'Unknown',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Question Text
+                      Text(
+                        questionData['questionText'],
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Like, Dislike, and Delete Button Row
+                      Row(
+                        children: [
+                          Image.asset('assets/images/Like.png', width: 24),
+                          const SizedBox(width: 10),
+                Image.asset('assets/images/Like-2.png', width: 24),
+                          const Spacer(),
+                          ElevatedButton.icon(
+                            onPressed: () => _deleteQuestion(questionData.id),
+                            icon: Image.asset('assets/images/Delete.png', width: 24),
+                            label: const Text(
+                              "Delete",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 4),
-            const Text(
-              "A place where you can ask and get better understanding of the world",
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: questions.length,
-                itemBuilder: (context, index) {
-                  return QuestionCard(question: questions[index]);
-                },
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
-}
 
-class Question {
-  final String category;
-  final Color categoryColor;
-  final String questionText;
-  final int likes;
-  final int dislikes;
+  // Category color logic
+  Color _getCategoryColor(String category) {
+    if (category.toLowerCase() == "education") {
+      return Colors.green;
+    } else if (category.toLowerCase() == "general") {
+      return Colors.yellow;
+    }
+    return Colors.grey;
+  }
 
-  Question({
-    required this.category,
-    required this.categoryColor,
-    required this.questionText,
-    required this.likes,
-    required this.dislikes,
-  });
-}
-
-class QuestionCard extends StatelessWidget {
-  final Question question;
-
-  const QuestionCard({super.key, required this.question});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: question.categoryColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(
-                question.category,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: question.categoryColor),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(question.questionText, style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Image.asset('assets/images/Like.png', width: 24),
-                const SizedBox(width: 4),
-                Text(question.likes.toString()),
-                const SizedBox(width: 10),
-                Image.asset('assets/images/Like-2.png', width: 24),
-                const SizedBox(width: 4),
-                Text(question.dislikes.toString()),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const EditQuestion()),
-                    );
-                  },
-                  icon: Image.asset('assets/images/Pencil.png', width: 24),
-                  label: const Text("Edit"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: AppColors.pureWhite,
-                    textStyle: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Implement delete function here
-                  },
-                  icon: Image.asset('assets/images/Delete.png', width: 24),
-                  label: const Text("Delete"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    textStyle: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  // Like & Dislike Icon with Counter
+  Widget _iconWithText(IconData icon, int count) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey),
+        const SizedBox(width: 4),
+        Text(count.toString(), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+      ],
     );
+  }
+
+  // Delete Question Functionality
+  Future<void> _deleteQuestion(String questionId) async {
+    try {
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // Reference to the question document
+      DocumentReference questionRef =
+      FirebaseFirestore.instance.collection('questions').doc(questionId);
+
+      // Fetch all answers associated with the question
+      QuerySnapshot answerSnapshot = await FirebaseFirestore.instance
+          .collection('answers')
+          .where('questionId', isEqualTo: questionId)
+          .get();
+
+      for (var doc in answerSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Delete the question itself
+      batch.delete(questionRef);
+
+      // Commit the batch operation
+      await batch.commit();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Question and its answers deleted successfully!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete question: $e")),
+      );
+    }
   }
 }

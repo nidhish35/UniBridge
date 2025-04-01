@@ -45,6 +45,58 @@ class _QuestionScreenState extends State<QuestionScreen> {
     }
   }
 
+  void _deleteQuestion(String questionId) async {
+    try {
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // Reference to the question document
+      DocumentReference questionRef =
+      FirebaseFirestore.instance.collection('questions').doc(questionId);
+
+      // Fetch all answers associated with the question
+      QuerySnapshot answerSnapshot = await FirebaseFirestore.instance
+          .collection('answers')
+          .where('questionId', isEqualTo: questionId)
+          .get();
+
+      if (answerSnapshot.docs.isEmpty) {
+        debugPrint("No answers found for this question.");
+      } else {
+        debugPrint("Deleting ${answerSnapshot.docs.length} answers.");
+      }
+
+      // Add all answers to batch delete
+      for (var doc in answerSnapshot.docs) {
+        debugPrint("Deleting answer: ${doc.id}");
+        batch.delete(doc.reference);
+      }
+
+      // Add the question to batch delete
+      batch.delete(questionRef);
+      debugPrint("Deleting question: $questionId");
+
+      // Commit the batch deletion
+      await batch.commit();
+      debugPrint("Batch commit successful!");
+
+      // Update the UI after deletion
+      setState(() {
+        questions.removeWhere((q) => q.id == questionId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Question and its answers deleted successfully!")),
+      );
+    } catch (e) {
+      debugPrint("Error deleting question and answers: $e");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete question: $e")),
+      );
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,6 +118,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
             _showEducationQuestions = isEducation;
           });
         },
+        onDelete: _deleteQuestion,  // Pass delete function
       );
     } else if (_selectedIndex == 0) {
       return const ProfileScreen();
@@ -127,12 +180,14 @@ class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
   final ValueChanged<bool> onCategoryChanged;
+  final Function(String) onDelete; // Add delete function
 
   const HomeContent({
     super.key,
     required this.questions,
     required this.isEducation,
     required this.onCategoryChanged,
+    required this.onDelete,  // Add delete function
   });
 
   @override
@@ -167,7 +222,10 @@ class HomeContent extends StatelessWidget {
               : ListView.builder(
             itemCount: filteredQuestions.length,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemBuilder: (context, index) => QuestionCard(question: filteredQuestions[index]),
+            itemBuilder: (context, index) => QuestionCard(
+              question: filteredQuestions[index],
+              onDelete: onDelete, // Pass delete function
+            ),
           ),
         ),
       ],
@@ -257,8 +315,9 @@ class Question {
 
 class QuestionCard extends StatelessWidget {
   final Question question;
+  final Function(String) onDelete;
 
-  const QuestionCard({super.key, required this.question});
+  const QuestionCard({super.key, required this.question, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -271,16 +330,25 @@ class QuestionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: question.categoryColor,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(
-                question.category,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: question.categoryColor,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    question.category,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: Image.asset('assets/images/Delete.png', width: 24),
+                  onPressed: () => onDelete(question.id),  // Call delete function
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(question.questionText, style: const TextStyle(fontSize: 14)),
@@ -313,7 +381,7 @@ class QuestionCard extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) =>  AnswerScreen(questionId: question.id)),
+                    MaterialPageRoute(builder: (context) => AnswerScreen(questionId: question.id)),
                   ),
                   icon: Image.asset('assets/images/Pencil.png'),
                   label: const Text("Give Answer"),
