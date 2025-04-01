@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
-import 'educationquestion.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 
 class AnswerScreen extends StatefulWidget {
@@ -16,6 +16,48 @@ class AnswerScreen extends StatefulWidget {
 class _AnswerScreenState extends State<AnswerScreen> {
   final TextEditingController _answerController = TextEditingController();
   bool _isPosting = false;
+  String _questionText = "";
+  String _category = "General";
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchQuestion();
+  }
+
+  Future<void> _fetchQuestion() async {
+    try {
+      DocumentSnapshot questionSnapshot = await FirebaseFirestore.instance
+          .collection('questions')
+          .doc(widget.questionId)
+          .get();
+
+      if (questionSnapshot.exists) {
+        setState(() {
+          _questionText = questionSnapshot['questionText'] ?? "Question not found";
+          _category = questionSnapshot['category'] ?? "General";
+        });
+      }
+    } catch (e) {
+      print("Error fetching question: $e");
+    }
+  }
+
+  Color _getCategoryColor() {
+    if (_category.toLowerCase() == "education") {
+      return Colors.green.shade100;
+    } else {
+      return Colors.yellow.shade800;
+    }
+  }
+
+  Color _getCategoryTextColor() {
+    if (_category.toLowerCase() == "education") {
+      return Colors.black;
+    } else {
+      return Colors.black;
+    }
+  }
 
   Future<void> _postAnswer() async {
     if (_answerController.text.trim().isEmpty) return;
@@ -23,11 +65,12 @@ class _AnswerScreenState extends State<AnswerScreen> {
     setState(() => _isPosting = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('answers')
-          .add({
+      String userId = FirebaseAuth.instance.currentUser?.uid ?? "Unknown"; // Get logged-in user ID
+
+      await FirebaseFirestore.instance.collection('answers').add({
         'questionId': widget.questionId,
         'answerText': _answerController.text.trim(),
+        'userId': userId, // Store user ID with answer
         'timestamp': FieldValue.serverTimestamp(),
       });
 
@@ -43,32 +86,85 @@ class _AnswerScreenState extends State<AnswerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Give Answer", style: TextStyle(color: AppColors.pureWhite)),
+        title: const Text("UniBridge", style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryBlue,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _answerController,
-              decoration: InputDecoration(
-                hintText: "Type your answer...",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            if (_category.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getCategoryColor(),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _category,
+                  style: TextStyle(
+                    color: _getCategoryTextColor(),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-              maxLines: 5,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey,
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _questionText,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isPosting ? null : _postAnswer,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                foregroundColor: AppColors.pureWhite,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: _isPosting
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Post Answer"),
+              child: TextField(
+                controller: _answerController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  hintText: "Write your Answer",
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text("(word limit 0-500)", style: TextStyle(color: Colors.grey)),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isPosting ? null : _postAnswer,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: _isPosting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Post the Answer", style: TextStyle(fontSize: 16, color: Colors.white)),
+              ),
             ),
           ],
         ),
