@@ -41,7 +41,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: Image.asset('assets/images/backarrow.png', width: 24),
+          icon: Image.asset('assets/images/backarrow-white.png', width: 24),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text("UniBridge", style: TextStyle(color: AppColors.pureWhite)),

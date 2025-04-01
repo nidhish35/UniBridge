@@ -20,7 +20,7 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
         backgroundColor: AppColors.primaryBlue,
         elevation: 0,
         leading: IconButton(
-          icon: Image.asset('assets/images/backarrow.png', width: 24),
+          icon: Image.asset('assets/images/backarrow-white.png', width: 24),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true, // Keep this

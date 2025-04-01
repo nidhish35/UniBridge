@@ -90,7 +90,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
         backgroundColor: AppColors.primaryBlue,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Image.asset('assets/images/backarrow-white.png', width: 24),
           onPressed: () => Navigator.pop(context),
         ),
       ),

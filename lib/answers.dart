@@ -39,7 +39,7 @@ class AllAnswerScreen extends StatelessWidget {
         backgroundColor: AppColors.primaryBlue,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.pureWhite),
+          icon: Image.asset('assets/images/backarrow-white.png', width: 24),
           onPressed: () => Navigator.pop(context),
         ),
       ),
