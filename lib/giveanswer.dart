@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'constraints/app_colors.dart';
 import 'educationquestion.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class AnswerScreen extends StatefulWidget {
-  const AnswerScreen({super.key});
+  final String questionId;
+
+  const AnswerScreen({super.key, required this.questionId});
 
   @override
   State<AnswerScreen> createState() => _AnswerScreenState();
@@ -12,99 +15,60 @@ class AnswerScreen extends StatefulWidget {
 
 class _AnswerScreenState extends State<AnswerScreen> {
   final TextEditingController _answerController = TextEditingController();
+  bool _isPosting = false;
 
-  @override
-  void dispose() {
-    _answerController.dispose();
-    super.dispose();
+  Future<void> _postAnswer() async {
+    if (_answerController.text.trim().isEmpty) return;
+
+    setState(() => _isPosting = true);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('answers')
+          .add({
+        'questionId': widget.questionId,
+        'answerText': _answerController.text.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      Navigator.pop(context);
+    } catch (e) {
+      print("Error posting answer: $e");
+    } finally {
+      setState(() => _isPosting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("UniBridge", style: TextStyle(color: AppColors.pureWhite)),
+        title: const Text("Give Answer", style: TextStyle(color: AppColors.pureWhite)),
         backgroundColor: AppColors.primaryBlue,
         centerTitle: true,
-        elevation: 0,
-        leading: IconButton(
-          icon: Image.asset('assets/images/backarrow.png', width: 24), // Default Back Arrow
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.mintGreen,
-                borderRadius: BorderRadius.circular(5),
+            TextField(
+              controller: _answerController,
+              decoration: InputDecoration(
+                hintText: "Type your answer...",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text(
-                "School of Business (SOB)",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
+              maxLines: 5,
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 15,
-                  backgroundColor: AppColors.lightGray,
-                  child: Icon(Icons.person, color: AppColors.darkGray),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightGray.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      "Ques. What is the difference between product design and UI/UX design?",
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Expanded(
-              child: TextField(
-                controller: _answerController,
-                maxLines: null,
-                minLines: 6,
-                maxLength: 500,
-                decoration: InputDecoration(
-                  hintText: "Write your Answer",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isPosting ? null : _postAnswer,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: AppColors.pureWhite,
               ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const QuestionScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: AppColors.pureWhite,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                child: const Text("Post the Answer"),
-              ),
+              child: _isPosting
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Post Answer"),
             ),
           ],
         ),

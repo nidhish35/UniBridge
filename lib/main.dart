@@ -53,14 +53,13 @@ class MyApp extends StatelessWidget {
         '/educationquestion': (context) => const QuestionScreen(), // Home Screen
         '/generalquestion': (context) => const GeneralQuestionScreen(),
         '/askquestion' : (context) => const AskQuestionsScreen(),
-        '/giveanswer': (context) => const AnswerScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/changepass': (context) => const ChangePasswordScreen(),
         '/theme': (context) => const ThemeSettingsScreen(),
         '/myquestion': (context) => const MyQuestionScreen(),
         '/editques': (context) => const EditQuestion(),
-        '/answers': (context) => const AllAnswerScreen(),
+        
 
 
 

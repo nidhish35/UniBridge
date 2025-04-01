@@ -261,6 +261,7 @@ class CategoryButton extends StatelessWidget {
 }
 
 class Question {
+  final String id;
   final String category;
   final Color categoryColor;
   final String questionText;
@@ -268,6 +269,7 @@ class Question {
   final int dislikes;
 
   Question({
+    required this.id,
     required this.category,
     required this.categoryColor,
     required this.questionText,
@@ -279,6 +281,7 @@ class Question {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
     return Question(
+      id: doc.id,
       category: data['category'] ?? 'General',
       categoryColor: _getCategoryColor(data['category'] ?? 'General'),
       questionText: data['questionText'] ?? '',
@@ -344,7 +347,7 @@ class QuestionCard extends StatelessWidget {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const AllAnswerScreen()),
+                        builder: (context) =>  AllAnswerScreen(questionId: question.id)),
                   ),
                   icon: Image.asset('assets/images/Show.png'),
                   label: const Text("See Answer"),
@@ -360,7 +363,7 @@ class QuestionCard extends StatelessWidget {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const AnswerScreen()),
+                        builder: (context) =>  AnswerScreen(questionId: question.id)),
                   ),
                   icon: Image.asset('assets/images/Pencil.png'),
                   label: const Text("Give Answer"),
