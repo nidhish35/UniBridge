@@ -8,7 +8,6 @@ import 'settings.dart';
 import 'answers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
 
@@ -32,7 +31,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
           (snapshot) => snapshot.docs.map((doc) => Question.fromFirestore(doc)).toList(),
     );
   }
-
 
   void _deleteQuestion(String questionId) async {
     try {
@@ -85,7 +83,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,7 +133,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
     return const SizedBox.shrink();
   }
 
-
   AppBar _buildAppBar() {
     return AppBar(
       elevation: 0,
@@ -180,14 +176,14 @@ class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
   final ValueChanged<bool> onCategoryChanged;
-  final Function(String) onDelete; // Add delete function
+  final Function(String) onDelete;
 
   const HomeContent({
     super.key,
     required this.questions,
     required this.isEducation,
     required this.onCategoryChanged,
-    required this.onDelete,  // Add delete function
+    required this.onDelete,
   });
 
   @override
@@ -224,7 +220,7 @@ class HomeContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) => QuestionCard(
               question: filteredQuestions[index],
-              onDelete: onDelete, // Pass delete function
+              onDelete: onDelete,
             ),
           ),
         ),
@@ -278,6 +274,8 @@ class Question {
   final String questionText;
   final int likes;
   final int dislikes;
+  final List<String> likedBy;
+  final List<String> dislikedBy;
 
   Question({
     required this.id,
@@ -286,6 +284,8 @@ class Question {
     required this.questionText,
     required this.likes,
     required this.dislikes,
+    required this.likedBy,
+    required this.dislikedBy,
   });
 
   factory Question.fromFirestore(DocumentSnapshot doc) {
@@ -298,6 +298,8 @@ class Question {
       questionText: data['questionText'] ?? '',
       likes: (data['likes'] ?? 0).toInt(),
       dislikes: (data['dislikes'] ?? 0).toInt(),
+      likedBy: List<String>.from(data['likedBy'] ?? []),
+      dislikedBy: List<String>.from(data['dislikedBy'] ?? []),
     );
   }
 
@@ -328,7 +330,10 @@ class _QuestionCardState extends State<QuestionCard> {
   bool _isDisliking = false;
 
   void _updateLikes(bool isLike) async {
-    if (_isLiking || _isDisliking) return; // Prevents multiple taps
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    if (_isLiking || _isDisliking) return;
 
     setState(() {
       if (isLike) {
@@ -346,18 +351,55 @@ class _QuestionCardState extends State<QuestionCard> {
         DocumentSnapshot snapshot = await transaction.get(questionRef);
         if (!snapshot.exists) return;
 
-        int currentLikes = (snapshot['likes'] ?? 0) as int;
-        int currentDislikes = (snapshot['dislikes'] ?? 0) as int;
+        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+        List<String> likedBy = List<String>.from(data['likedBy'] ?? []);
+        List<String> dislikedBy = List<String>.from(data['dislikedBy'] ?? []);
+        int currentLikes = (data['likes'] ?? 0) as int;
+        int currentDislikes = (data['dislikes'] ?? 0) as int;
 
         if (isLike) {
-          transaction.update(questionRef, {'likes': currentLikes + 1});
+          if (likedBy.contains(userId)) {
+            // Undo like
+            likedBy.remove(userId);
+            currentLikes--;
+          } else if (dislikedBy.contains(userId)) {
+            // Switch from dislike to like
+            dislikedBy.remove(userId);
+            currentDislikes--;
+            likedBy.add(userId);
+            currentLikes++;
+          } else {
+            // New like
+            likedBy.add(userId);
+            currentLikes++;
+          }
         } else {
-          transaction.update(questionRef, {'dislikes': currentDislikes + 1});
+          if (dislikedBy.contains(userId)) {
+            // Undo dislike
+            dislikedBy.remove(userId);
+            currentDislikes--;
+          } else if (likedBy.contains(userId)) {
+            // Switch from like to dislike
+            likedBy.remove(userId);
+            currentLikes--;
+            dislikedBy.add(userId);
+            currentDislikes++;
+          } else {
+            // New dislike
+            dislikedBy.add(userId);
+            currentDislikes++;
+          }
         }
-      });
 
+        transaction.update(questionRef, {
+          'likes': currentLikes,
+          'dislikes': currentDislikes,
+          'likedBy': likedBy,
+          'dislikedBy': dislikedBy,
+        });
+      });
     } catch (e) {
-      debugPrint("Error updating likes/dislikes: $e");
+      debugPrint("Error updating votes: $e");
     }
 
     setState(() {
@@ -368,6 +410,10 @@ class _QuestionCardState extends State<QuestionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final hasLiked = widget.question.likedBy.contains(userId);
+    final hasDisliked = widget.question.dislikedBy.contains(userId);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -377,7 +423,6 @@ class _QuestionCardState extends State<QuestionCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category & Delete Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -399,19 +444,19 @@ class _QuestionCardState extends State<QuestionCard> {
               ],
             ),
             const SizedBox(height: 8),
-
-            // Question Text
             Text(widget.question.questionText, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 10),
-
-            // Like & Dislike Buttons
             Row(
               children: [
                 GestureDetector(
                   onTap: () => _updateLikes(true),
                   child: Row(
                     children: [
-                      Image.asset('assets/images/Like.png', width: 24),
+                      Image.asset(
+                        'assets/images/Like.png',
+                        width: 24,
+                        color: hasLiked ? AppColors.primaryBlue : null,
+                      ),
                       const SizedBox(width: 4),
                       StreamBuilder<DocumentSnapshot>(
                         stream: FirebaseFirestore.instance
@@ -432,7 +477,11 @@ class _QuestionCardState extends State<QuestionCard> {
                   onTap: () => _updateLikes(false),
                   child: Row(
                     children: [
-                      Image.asset('assets/images/Like-2.png', width: 24),
+                      Image.asset(
+                        'assets/images/Like-2.png',
+                        width: 24,
+                        color: hasDisliked ? AppColors.primaryBlue : null,
+                      ),
                       const SizedBox(width: 4),
                       StreamBuilder<DocumentSnapshot>(
                         stream: FirebaseFirestore.instance
@@ -449,8 +498,6 @@ class _QuestionCardState extends State<QuestionCard> {
                   ),
                 ),
                 const Spacer(),
-
-                // See Answer Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
@@ -466,8 +513,6 @@ class _QuestionCardState extends State<QuestionCard> {
                   ),
                 ),
                 const SizedBox(width: 10),
-
-                // Give Answer Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,

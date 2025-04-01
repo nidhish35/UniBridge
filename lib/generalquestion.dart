@@ -6,6 +6,7 @@ import 'giveanswer.dart';
 import 'profile.dart';
 import 'settings.dart';
 import 'answers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GeneralQuestionScreen extends StatefulWidget {
   const GeneralQuestionScreen({super.key});
@@ -31,16 +32,13 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
     );
   }
 
-
   void _deleteQuestion(String questionId) async {
     try {
       WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      // Reference to the question document
       DocumentReference questionRef =
       FirebaseFirestore.instance.collection('questions').doc(questionId);
 
-      // Fetch all answers associated with the question
       QuerySnapshot answerSnapshot = await FirebaseFirestore.instance
           .collection('answers')
           .where('questionId', isEqualTo: questionId)
@@ -52,21 +50,17 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
         debugPrint("Deleting ${answerSnapshot.docs.length} answers.");
       }
 
-      // Add all answers to batch delete
       for (var doc in answerSnapshot.docs) {
         debugPrint("Deleting answer: ${doc.id}");
         batch.delete(doc.reference);
       }
 
-      // Add the question to batch delete
       batch.delete(questionRef);
       debugPrint("Deleting question: $questionId");
 
-      // Commit the batch deletion
       await batch.commit();
       debugPrint("Batch commit successful!");
 
-      // Update the UI after deletion
       setState(() {
         questions.removeWhere((q) => q.id == questionId);
       });
@@ -82,7 +76,6 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +117,7 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
       return AskQuestionsScreen(
         onQuestionPosted: () {
           setState(() {
-            _selectedIndex = 1; // Switch back to Home tab
+            _selectedIndex = 1;
           });
         },
       );
@@ -133,7 +126,6 @@ class _GeneralQuestionScreenState extends State<GeneralQuestionScreen> {
     }
     return const SizedBox.shrink();
   }
-
 
   AppBar _buildAppBar() {
     return AppBar(
@@ -178,14 +170,14 @@ class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
   final ValueChanged<bool> onCategoryChanged;
-  final Function(String) onDelete; // Add delete function
+  final Function(String) onDelete;
 
   const HomeContent({
     super.key,
     required this.questions,
     required this.isEducation,
     required this.onCategoryChanged,
-    required this.onDelete,  // Add delete function
+    required this.onDelete,
   });
 
   @override
@@ -222,7 +214,7 @@ class HomeContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) => QuestionCard(
               question: filteredQuestions[index],
-              onDelete: onDelete, // Pass delete function
+              onDelete: onDelete,
             ),
           ),
         ),
@@ -230,7 +222,6 @@ class HomeContent extends StatelessWidget {
     );
   }
 }
-
 
 class CategoryButton extends StatelessWidget {
   final String text;
@@ -277,6 +268,8 @@ class Question {
   final String questionText;
   final int likes;
   final int dislikes;
+  final List<String> likedBy;
+  final List<String> dislikedBy;
 
   Question({
     required this.id,
@@ -285,6 +278,8 @@ class Question {
     required this.questionText,
     required this.likes,
     required this.dislikes,
+    required this.likedBy,
+    required this.dislikedBy,
   });
 
   factory Question.fromFirestore(DocumentSnapshot doc) {
@@ -297,6 +292,8 @@ class Question {
       questionText: data['questionText'] ?? '',
       likes: (data['likes'] ?? 0).toInt(),
       dislikes: (data['dislikes'] ?? 0).toInt(),
+      likedBy: List<String>.from(data['likedBy'] ?? []),
+      dislikedBy: List<String>.from(data['dislikedBy'] ?? []),
     );
   }
 
@@ -326,7 +323,10 @@ class _QuestionCardState extends State<QuestionCard> {
   bool _isDisliking = false;
 
   void _updateLikes(bool isLike) async {
-    if (_isLiking || _isDisliking) return; // Prevents multiple taps
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    if (_isLiking || _isDisliking) return;
 
     setState(() {
       if (isLike) {
@@ -344,18 +344,49 @@ class _QuestionCardState extends State<QuestionCard> {
         DocumentSnapshot snapshot = await transaction.get(questionRef);
         if (!snapshot.exists) return;
 
-        int currentLikes = (snapshot['likes'] ?? 0) as int;
-        int currentDislikes = (snapshot['dislikes'] ?? 0) as int;
+        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+        List<String> likedBy = List<String>.from(data['likedBy'] ?? []);
+        List<String> dislikedBy = List<String>.from(data['dislikedBy'] ?? []);
+        int currentLikes = (data['likes'] ?? 0) as int;
+        int currentDislikes = (data['dislikes'] ?? 0) as int;
 
         if (isLike) {
-          transaction.update(questionRef, {'likes': currentLikes + 1});
+          if (likedBy.contains(userId)) {
+            likedBy.remove(userId);
+            currentLikes--;
+          } else if (dislikedBy.contains(userId)) {
+            dislikedBy.remove(userId);
+            currentDislikes--;
+            likedBy.add(userId);
+            currentLikes++;
+          } else {
+            likedBy.add(userId);
+            currentLikes++;
+          }
         } else {
-          transaction.update(questionRef, {'dislikes': currentDislikes + 1});
+          if (dislikedBy.contains(userId)) {
+            dislikedBy.remove(userId);
+            currentDislikes--;
+          } else if (likedBy.contains(userId)) {
+            likedBy.remove(userId);
+            currentLikes--;
+            dislikedBy.add(userId);
+            currentDislikes++;
+          } else {
+            dislikedBy.add(userId);
+            currentDislikes++;
+          }
         }
-      });
 
+        transaction.update(questionRef, {
+          'likes': currentLikes,
+          'dislikes': currentDislikes,
+          'likedBy': likedBy,
+          'dislikedBy': dislikedBy,
+        });
+      });
     } catch (e) {
-      debugPrint("Error updating likes/dislikes: $e");
+      debugPrint("Error updating votes: $e");
     }
 
     setState(() {
@@ -366,6 +397,10 @@ class _QuestionCardState extends State<QuestionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final hasLiked = widget.question.likedBy.contains(userId);
+    final hasDisliked = widget.question.dislikedBy.contains(userId);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -375,7 +410,6 @@ class _QuestionCardState extends State<QuestionCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category & Delete Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -397,19 +431,19 @@ class _QuestionCardState extends State<QuestionCard> {
               ],
             ),
             const SizedBox(height: 8),
-
-            // Question Text
             Text(widget.question.questionText, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 10),
-
-            // Like & Dislike Buttons
             Row(
               children: [
                 GestureDetector(
                   onTap: () => _updateLikes(true),
                   child: Row(
                     children: [
-                      Image.asset('assets/images/Like.png', width: 24),
+                      Image.asset(
+                        'assets/images/Like.png',
+                        width: 24,
+                        color: hasLiked ? AppColors.primaryBlue : null,
+                      ),
                       const SizedBox(width: 4),
                       StreamBuilder<DocumentSnapshot>(
                         stream: FirebaseFirestore.instance
@@ -430,7 +464,11 @@ class _QuestionCardState extends State<QuestionCard> {
                   onTap: () => _updateLikes(false),
                   child: Row(
                     children: [
-                      Image.asset('assets/images/Like-2.png', width: 24),
+                      Image.asset(
+                        'assets/images/Like-2.png',
+                        width: 24,
+                        color: hasDisliked ? AppColors.primaryBlue : null,
+                      ),
                       const SizedBox(width: 4),
                       StreamBuilder<DocumentSnapshot>(
                         stream: FirebaseFirestore.instance
@@ -447,8 +485,6 @@ class _QuestionCardState extends State<QuestionCard> {
                   ),
                 ),
                 const Spacer(),
-
-                // See Answer Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
@@ -464,8 +500,6 @@ class _QuestionCardState extends State<QuestionCard> {
                   ),
                 ),
                 const SizedBox(width: 10),
-
-                // Give Answer Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
