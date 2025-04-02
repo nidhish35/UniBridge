@@ -18,6 +18,14 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 version: 1.0.0+1
 
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/playstorelogo.png"  # Change to your icon path
+  adaptive_icon_background: "#ffffff"  # For Android adaptive icons
+
+
+
 environment:
   sdk: ^3.7.0
 
@@ -45,6 +53,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   provider: ^6.1.4
+  flutter_launcher_icons: ^0.14.3
 
 dev_dependencies:
   flutter_test:
