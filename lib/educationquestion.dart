@@ -158,12 +158,13 @@ class HomeContent extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CategoryButton(
-                text: "Education Questions",
+                text: "Education",
                 isSelected: isEducation,
                 onTap: () => onCategoryChanged(true),
               ),
+              const SizedBox(width: 10),
               CategoryButton(
-                text: "General Questions",
+                text: "General",
                 isSelected: !isEducation,
                 onTap: () => onCategoryChanged(false),
               ),
@@ -217,6 +218,7 @@ class CategoryButton extends StatelessWidget {
               style: TextStyle(
                 color: isSelected ? AppColors.pureWhite : AppColors.darkGray,
                 fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
             ),
           ),
@@ -308,24 +310,40 @@ class QuestionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(question.questionText, style: const TextStyle(fontSize: 14)),
+            Text(
+              question.questionText,
+              style: const TextStyle(fontSize: 14),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 10),
             Row(
               children: [
+                // Like button and count
                 GestureDetector(
                   onTap: () => onLike(question.id),
-                  child: Image.asset('assets/images/Like.png', width: 24),
+                  child: Image.asset('assets/images/Like.png', width: 20),
                 ),
-                const SizedBox(width: 4),
-                Text(question.likes.toString()),
-                const SizedBox(width: 10),
+                const SizedBox(width: 2),
+                Text(
+                  question.likes.toString(),
+                  style: const TextStyle(fontSize: 12),
+                ),
+                const SizedBox(width: 8),
+
+                // Dislike button and count
                 GestureDetector(
                   onTap: () => onDislike(question.id),
-                  child: Image.asset('assets/images/Like-2.png', width: 24),
+                  child: Image.asset('assets/images/Like-2.png', width: 20),
                 ),
-                const SizedBox(width: 4),
-                Text(question.dislikes.toString()),
+                const SizedBox(width: 2),
+                Text(
+                  question.dislikes.toString(),
+                  style: const TextStyle(fontSize: 12),
+                ),
                 const Spacer(),
+
+                // Answers button with eye icon
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
@@ -333,16 +351,20 @@ class QuestionCard extends StatelessWidget {
                       builder: (context) => AllAnswerScreen(questionId: question.id),
                     ),
                   ),
-                  icon: Image.asset('assets/images/Show.png'),
-                  label: const Text("See Answer"),
+                  icon: Image.asset('assets/images/Show.png', width: 16),
+                  label: const Text("Answers"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.pureWhite,
                     foregroundColor: AppColors.primaryBlue,
                     side: const BorderSide(color: AppColors.primaryBlue),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(0, 24),
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
+
+                // Give Answer button with pencil icon
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
@@ -350,11 +372,13 @@ class QuestionCard extends StatelessWidget {
                       builder: (context) => AnswerScreen(questionId: question.id),
                     ),
                   ),
-                  icon: Image.asset('assets/images/Pencil.png'),
-                  label: const Text("Give Answer"),
+                  icon: Image.asset('assets/images/Pencil.png', width: 16),
+                  label: const Text("Answer"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     foregroundColor: AppColors.pureWhite,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(0, 24),
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
