@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'constraints/app_colors.dart';
-
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -12,9 +12,9 @@ class ChangePasswordScreen extends StatefulWidget {
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
-  void _updatePassword() {
-    // Add logic to handle password update
+  Future<void> _updatePassword() async {
     String newPassword = _newPasswordController.text;
     String confirmPassword = _confirmPasswordController.text;
 
@@ -26,9 +26,37 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _showMessage("Passwords do not match");
       return;
     }
+    if (newPassword.length < 6) {
+      _showMessage("Password must be at least 6 characters long");
+      return;
+    }
 
-    // TODO: Add API call or logic for updating password
-    _showMessage("Password updated successfully");
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updatePassword(newPassword);
+        _showMessage("Password updated successfully");
+        Navigator.pop(context); // Return to the previous screen
+      } else {
+        _showMessage("User not logged in");
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        _showMessage("Please re-login before updating your password.");
+      } else {
+        _showMessage("Error: ${e.message}");
+      }
+    } catch (e) {
+      _showMessage("An unexpected error occurred.");
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   void _showMessage(String message) {
@@ -71,13 +99,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _updatePassword,
+                onPressed: _isLoading ? null : _updatePassword,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBlue,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text("Update Password", style: TextStyle(fontSize: 16, color: Colors.white)),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Update Password", style: TextStyle(fontSize: 16, color: Colors.white)),
               ),
             ),
             const SizedBox(height: 20),
@@ -87,7 +117,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   Navigator.pop(context); // Go back to login or previous screen
                 },
                 child: const Text(
-                  "Back to Login",
+                  "Back to Settings",
                   style: TextStyle(fontSize: 14, color: AppColors.primaryBlue, fontWeight: FontWeight.bold),
                 ),
               ),
