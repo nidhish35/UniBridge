@@ -106,21 +106,10 @@ class _AnswerScreenState extends State<AnswerScreen> {
                   ),
                 ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.grey,
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _questionText,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
+              // ❌ Removed the CircleAvatar icon
+              Text(
+                _questionText,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 16),
               Container(
