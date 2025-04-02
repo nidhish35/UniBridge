@@ -193,16 +193,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         : 'Minimum 6 characters required',
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureText ? Icons.visibility_off : Icons.visibility, // ✅ Correct Icons
-                          color: Colors.black54, // ✅ Ensure it is visible
+                        icon: Image.asset(
+                          _obscureText
+                              ? 'assets/images/eye.png'  // Replace with your closed eye image
+                              : 'assets/images/eye-close-up.png',   // Replace with your open eye image
+                          width: 24, // Adjust size as needed
+                          height: 24,
                         ),
                         onPressed: () {
                           setState(() {
-                            _obscureText = !_obscureText; // ✅ Toggle Password Visibility
+                            _obscureText = !_obscureText; // ✅ Toggle visibility
                           });
                         },
                       ),
