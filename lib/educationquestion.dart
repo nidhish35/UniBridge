@@ -7,7 +7,6 @@ import 'profile.dart';
 import 'settings.dart';
 import 'answers.dart';
 
-
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
 
@@ -18,54 +17,60 @@ class QuestionScreen extends StatefulWidget {
 class _QuestionScreenState extends State<QuestionScreen> {
   int _selectedIndex = 1;
   bool _showEducationQuestions = true;
-  List<Question> questions = [];
-  bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchQuestions();
+  Stream<List<Question>> _getQuestionsStream() {
+    return FirebaseFirestore.instance
+        .collection('questions')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => Question.fromFirestore(doc))
+        .toList());
   }
 
-  Future<void> _fetchQuestions() async {
-    try {
-      QuerySnapshot snapshot =
-      await FirebaseFirestore.instance.collection('questions').get();
+  void _incrementLike(String questionId) {
+    FirebaseFirestore.instance.collection('questions').doc(questionId).update({
+      'likes': FieldValue.increment(1),
+    }).catchError((e) => print("Error updating like: $e"));
+  }
 
-      List<Question> fetchedQuestions = snapshot.docs
-          .map((doc) => Question.fromFirestore(doc))
-          .toList();
-
-      setState(() {
-        questions = fetchedQuestions;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error fetching questions: $e");
-      setState(() => _isLoading = false);
-    }
+  void _incrementDislike(String questionId) {
+    FirebaseFirestore.instance.collection('questions').doc(questionId).update({
+      'dislikes': FieldValue.increment(1),
+    }).catchError((e) => print("Error updating dislike: $e"));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _selectedIndex == 1 ? _buildAppBar() : null,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _getPage(),
+      body: _getPage(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
   Widget _getPage() {
     if (_selectedIndex == 1) {
-      return HomeContent(
-        questions: questions,
-        isEducation: _showEducationQuestions,
-        onCategoryChanged: (isEducation) {
-          setState(() {
-            _showEducationQuestions = isEducation;
-          });
+      return StreamBuilder<List<Question>>(
+        stream: _getQuestionsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("No questions found"));
+          }
+
+          return HomeContent(
+            questions: snapshot.data!,
+            isEducation: _showEducationQuestions,
+            onCategoryChanged: (isEducation) {
+              setState(() {
+                _showEducationQuestions = isEducation;
+              });
+            },
+            onLike: _incrementLike,
+            onDislike: _incrementDislike,
+          );
         },
       );
     } else if (_selectedIndex == 0) {
@@ -74,8 +79,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
       return AskQuestionsScreen(
         onQuestionPosted: () {
           setState(() {
-            _selectedIndex = 1; // Switch back to Home tab
-            _fetchQuestions(); // Refresh questions list
+            _selectedIndex = 1;
           });
         },
       );
@@ -128,12 +132,16 @@ class HomeContent extends StatelessWidget {
   final List<Question> questions;
   final bool isEducation;
   final ValueChanged<bool> onCategoryChanged;
+  final Function(String) onLike;
+  final Function(String) onDislike;
 
   const HomeContent({
     super.key,
     required this.questions,
     required this.isEducation,
     required this.onCategoryChanged,
+    required this.onLike,
+    required this.onDislike,
   });
 
   @override
@@ -170,6 +178,8 @@ class HomeContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) => QuestionCard(
               question: filteredQuestions[index],
+              onLike: onLike,
+              onDislike: onDislike,
             ),
           ),
         ),
@@ -260,8 +270,15 @@ class Question {
 
 class QuestionCard extends StatelessWidget {
   final Question question;
+  final Function(String) onLike;
+  final Function(String) onDislike;
 
-  const QuestionCard({super.key, required this.question});
+  const QuestionCard({
+    super.key,
+    required this.question,
+    required this.onLike,
+    required this.onDislike,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -295,11 +312,17 @@ class QuestionCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Image.asset('assets/images/Like.png', width: 24),
+                GestureDetector(
+                  onTap: () => onLike(question.id),
+                  child: Image.asset('assets/images/Like.png', width: 24),
+                ),
                 const SizedBox(width: 4),
                 Text(question.likes.toString()),
                 const SizedBox(width: 10),
-                Image.asset('assets/images/Like-2.png', width: 24),
+                GestureDetector(
+                  onTap: () => onDislike(question.id),
+                  child: Image.asset('assets/images/Like-2.png', width: 24),
+                ),
                 const SizedBox(width: 4),
                 Text(question.dislikes.toString()),
                 const Spacer(),
