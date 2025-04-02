@@ -6,6 +6,7 @@ import 'giveanswer.dart';
 import 'profile.dart';
 import 'settings.dart';
 import 'answers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
@@ -27,16 +28,82 @@ class _QuestionScreenState extends State<QuestionScreen> {
         .toList());
   }
 
-  void _incrementLike(String questionId) {
-    FirebaseFirestore.instance.collection('questions').doc(questionId).update({
-      'likes': FieldValue.increment(1),
-    }).catchError((e) => print("Error updating like: $e"));
+  void _incrementLike(String questionId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final voteRef = FirebaseFirestore.instance
+        .collection('questions')
+        .doc(questionId)
+        .collection('votes')
+        .doc(userId);
+
+    FirebaseFirestore.instance.runTransaction((transaction) async {
+      DocumentSnapshot voteSnapshot = await transaction.get(voteRef);
+      DocumentSnapshot questionSnapshot = await transaction.get(
+          FirebaseFirestore.instance.collection('questions').doc(questionId));
+
+      if (!questionSnapshot.exists) throw Exception("Question does not exist");
+
+      Map<String, dynamic> questionData = questionSnapshot.data() as Map<String, dynamic>;
+      int currentLikes = questionData['likes'] ?? 0;
+      int currentDislikes = questionData['dislikes'] ?? 0;
+
+      if (voteSnapshot.exists) {
+        String previousVote = voteSnapshot['type'];
+        if (previousVote == 'like') return;
+        currentDislikes--;
+        currentLikes++;
+        transaction.update(questionSnapshot.reference, {
+          'likes': currentLikes,
+          'dislikes': currentDislikes,
+        });
+        transaction.update(voteRef, {'type': 'like'});
+      } else {
+        currentLikes++;
+        transaction.update(questionSnapshot.reference, {'likes': currentLikes});
+        transaction.set(voteRef, {'type': 'like'});
+      }
+    }).catchError((error) => print("Error updating like: $error"));
   }
 
-  void _incrementDislike(String questionId) {
-    FirebaseFirestore.instance.collection('questions').doc(questionId).update({
-      'dislikes': FieldValue.increment(1),
-    }).catchError((e) => print("Error updating dislike: $e"));
+  void _incrementDislike(String questionId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final voteRef = FirebaseFirestore.instance
+        .collection('questions')
+        .doc(questionId)
+        .collection('votes')
+        .doc(userId);
+
+    FirebaseFirestore.instance.runTransaction((transaction) async {
+      DocumentSnapshot voteSnapshot = await transaction.get(voteRef);
+      DocumentSnapshot questionSnapshot = await transaction.get(
+          FirebaseFirestore.instance.collection('questions').doc(questionId));
+
+      if (!questionSnapshot.exists) throw Exception("Question does not exist");
+
+      Map<String, dynamic> questionData = questionSnapshot.data() as Map<String, dynamic>;
+      int currentLikes = questionData['likes'] ?? 0;
+      int currentDislikes = questionData['dislikes'] ?? 0;
+
+      if (voteSnapshot.exists) {
+        String previousVote = voteSnapshot['type'];
+        if (previousVote == 'dislike') return;
+        currentLikes--;
+        currentDislikes++;
+        transaction.update(questionSnapshot.reference, {
+          'likes': currentLikes,
+          'dislikes': currentDislikes,
+        });
+        transaction.update(voteRef, {'type': 'dislike'});
+      } else {
+        currentDislikes++;
+        transaction.update(questionSnapshot.reference, {'dislikes': currentDislikes});
+        transaction.set(voteRef, {'type': 'dislike'});
+      }
+    }).catchError((error) => print("Error updating dislike: $error"));
   }
 
   @override
@@ -270,7 +337,7 @@ class Question {
   }
 }
 
-class QuestionCard extends StatelessWidget {
+class QuestionCard extends StatefulWidget {
   final Question question;
   final Function(String) onLike;
   final Function(String) onDislike;
@@ -281,6 +348,37 @@ class QuestionCard extends StatelessWidget {
     required this.onLike,
     required this.onDislike,
   });
+
+  @override
+  _QuestionCardState createState() => _QuestionCardState();
+}
+
+class _QuestionCardState extends State<QuestionCard> {
+  String? userVote;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserVote();
+  }
+
+  Future<void> _getUserVote() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final voteRef = FirebaseFirestore.instance
+        .collection('questions')
+        .doc(widget.question.id)
+        .collection('votes')
+        .doc(userId);
+
+    final voteSnapshot = await voteRef.get();
+    if (voteSnapshot.exists) {
+      setState(() {
+        userVote = voteSnapshot['type'];
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -299,11 +397,11 @@ class QuestionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: question.categoryColor,
+                    color: widget.question.categoryColor,
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    question.category,
+                    widget.question.category,
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -311,7 +409,7 @@ class QuestionCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              question.questionText,
+              widget.question.questionText,
               style: const TextStyle(fontSize: 14),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -319,36 +417,54 @@ class QuestionCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                // Like button and count
+                // Like button
                 GestureDetector(
-                  onTap: () => onLike(question.id),
-                  child: Image.asset('assets/images/Like.png', width: 20),
+                  onTap: () {
+                    widget.onLike(widget.question.id);
+                    setState(() {
+                      userVote = 'like';
+                    });
+                  },
+                  child: Image.asset(
+                    'assets/images/Like.png',
+                    width: 20,
+                    color: userVote == 'like' ? Colors.green : null,
+                  ),
                 ),
                 const SizedBox(width: 2),
                 Text(
-                  question.likes.toString(),
+                  widget.question.likes.toString(),
                   style: const TextStyle(fontSize: 12),
                 ),
                 const SizedBox(width: 8),
 
-                // Dislike button and count
+                // Dislike button
                 GestureDetector(
-                  onTap: () => onDislike(question.id),
-                  child: Image.asset('assets/images/Like-2.png', width: 20),
+                  onTap: () {
+                    widget.onDislike(widget.question.id);
+                    setState(() {
+                      userVote = 'dislike';
+                    });
+                  },
+                  child: Image.asset(
+                    'assets/images/Like-2.png',
+                    width: 20,
+                    color: userVote == 'dislike' ? Colors.red : null,
+                  ),
                 ),
                 const SizedBox(width: 2),
                 Text(
-                  question.dislikes.toString(),
+                  widget.question.dislikes.toString(),
                   style: const TextStyle(fontSize: 12),
                 ),
                 const Spacer(),
 
-                // Answers button with eye icon
+                // Answers button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AllAnswerScreen(questionId: question.id),
+                      builder: (context) => AllAnswerScreen(questionId: widget.question.id),
                     ),
                   ),
                   icon: Image.asset('assets/images/Show.png', width: 16),
@@ -364,12 +480,12 @@ class QuestionCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
 
-                // Give Answer button with pencil icon
+                // Give Answer button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AnswerScreen(questionId: question.id),
+                      builder: (context) => AnswerScreen(questionId: widget.question.id),
                     ),
                   ),
                   icon: Image.asset('assets/images/Pencil.png', width: 16),
