@@ -149,7 +149,7 @@ class AllAnswerScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                fullName, // Now correctly fetches the full name
+                                fullName, // correctly fetches the full name
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,

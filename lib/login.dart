@@ -200,14 +200,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       suffixIcon: IconButton(
                         icon: Image.asset(
                           _obscureText
-                              ? 'assets/images/eye.png'  // Replace with your closed eye image
-                              : 'assets/images/eye-close-up.png',   // Replace with your open eye image
-                          width: 24, // Adjust size as needed
+                              ? 'assets/images/eye.png'
+                              : 'assets/images/eye-close-up.png',
+                          width: 24,
                           height: 24,
                         ),
                         onPressed: () {
                           setState(() {
-                            _obscureText = !_obscureText; // ✅ Toggle visibility
+                            _obscureText = !_obscureText; //  Toggle visibility
                           });
                         },
                       ),

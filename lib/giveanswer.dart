@@ -74,7 +74,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true, // ✅ Fix for overflow issue
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text("UniBridge", style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryBlue,
@@ -84,7 +84,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView( // ✅ Enables scrolling when keyboard opens
+      body: SingleChildScrollView( // Enables scrolling when keyboard opens
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -106,7 +106,6 @@ class _AnswerScreenState extends State<AnswerScreen> {
                   ),
                 ),
               const SizedBox(height: 12),
-              // ❌ Removed the CircleAvatar icon
               Text(
                 _questionText,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -121,7 +120,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
                 child: TextField(
                   controller: _answerController,
                   maxLines: 5,
-                  keyboardType: TextInputType.multiline, // ✅ Supports multiline input
+                  keyboardType: TextInputType.multiline, //  Supports multiline input
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     hintText: "Write your Answer",
@@ -147,7 +146,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
                       : const Text("Post the Answer", style: TextStyle(fontSize: 16, color: Colors.white)),
                 ),
               ),
-              const SizedBox(height: 20), // ✅ Extra space to prevent keyboard overlap
+              const SizedBox(height: 20),
             ],
           ),
         ),

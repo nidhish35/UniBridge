@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// **Checks if user is logged in or not**
+/// Checks if user is logged in or not
 class AuthCheck extends StatelessWidget {
   const AuthCheck({super.key});
 
